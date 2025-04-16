@@ -4,7 +4,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import App from "./App";
 import LandingPage from "./pages/LandingPage";
-// import MainNavigation from "./components/MainNavigation";
 import { AuthProvider } from "./context/AuthContext";
 import { initDebugging } from "./utils/debugging";
 import ConferenceDetailPage from "./pages/conferences/ConferenceDetailPage";
@@ -13,6 +12,9 @@ import ConferenceCreatePage from "./pages/conferences/ConferenceCreatePage";
 import UserDashboard from "./pages/user/UserDashboard";
 import ScrollToTop from "./components/ScrollToTop";
 import { startConferenceStatusTimer } from "./utils/conferenceStatus";
+import CommunitiesPage from "./pages/community/CommunitiesPage";
+import CommunityPage from "./pages/community/CommunityPage";
+import { CommunityProvider } from "./context/CommunityContext";
 
 // Initialize debugging
 initDebugging();
@@ -94,7 +96,7 @@ try {
   }
 
   createRoot(rootElement).render(
-  <StrictMode>
+    <StrictMode>
       <ErrorBoundary>
         <AuthProvider>
           <BrowserRouter>
@@ -114,6 +116,18 @@ try {
                   element={<ConferenceDetailPage />}
                 />
                 <Route path="/dashboard" element={<UserDashboard />} />
+
+                {/* Community Routes */}
+                <Route path="/communities" element={<CommunitiesPage />} />
+                <Route
+                  path="/community/:communityId"
+                  element={
+                    <CommunityProvider>
+                      <CommunityPage />
+                    </CommunityProvider>
+                  }
+                />
+
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </div>

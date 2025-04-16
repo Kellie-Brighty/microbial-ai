@@ -274,16 +274,24 @@ const LandingPage: React.FC = () => {
 
             {/* Feature Card 3 */}
             <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-8">
-              <div className="h-14 w-14 rounded-full bg-mint flex items-center justify-center mx-auto mb-6">
-                <GiDna1 className="text-white text-2xl" />
+              <div className="h-14 w-14 rounded-full bg-blue-500 flex items-center justify-center mx-auto mb-6">
+                <FaUsers className="text-white text-xl" />
               </div>
               <h3 className="text-xl font-bold text-charcoal mb-4 text-center">
-                Protocol Design
+                The Anonymous Lounge
               </h3>
               <p className="text-gray-600 text-center">
-                Design and optimize research protocols tailored to your specific
-                microbiology experiments.
+                Share memes, vent about lab life, and discuss science freely in
+                our anonymous social platform powered by Whizpar.
               </p>
+              <div className="text-center mt-4">
+                <Link
+                  to="/communities"
+                  className="text-blue-500 hover:text-blue-700 font-medium"
+                >
+                  Join the Fun →
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -673,6 +681,14 @@ const LandingPage: React.FC = () => {
                   >
                     AI Assistant
                   </a>
+                </li>
+                <li>
+                  <Link
+                    to="/communities"
+                    className="text-gray-100 hover:text-mint transition-colors"
+                  >
+                    Communities
+                  </Link>
                 </li>
                 <li>
                   <a

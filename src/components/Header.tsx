@@ -7,6 +7,7 @@ import {
   FaSignInAlt,
   FaComments,
   FaSignOutAlt,
+  FaUsers,
 } from "react-icons/fa";
 import { MdLiveTv } from "react-icons/md";
 import { GiDna1 } from "react-icons/gi";
@@ -20,16 +21,26 @@ interface SignOutModalProps {
   onConfirm: () => void;
 }
 
-const SignOutModal: React.FC<SignOutModalProps> = ({ isOpen, onClose, onConfirm }) => {
+const SignOutModal: React.FC<SignOutModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+}) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="fixed inset-0 bg-black opacity-50" onClick={onClose}></div>
+      <div
+        className="fixed inset-0 bg-black opacity-50"
+        onClick={onClose}
+      ></div>
       <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 relative z-10">
-        <h3 className="text-xl font-semibold text-charcoal mb-4">Sign Out Confirmation</h3>
+        <h3 className="text-xl font-semibold text-charcoal mb-4">
+          Sign Out Confirmation
+        </h3>
         <p className="text-gray-600 mb-6">
-          Are you sure you want to sign out? You'll need to sign in again to access your account.
+          Are you sure you want to sign out? You'll need to sign in again to
+          access your account.
         </p>
         <div className="flex justify-end space-x-3">
           <button
@@ -139,6 +150,18 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
             </span>
           </Link>
           <Link
+            to="/communities"
+            className={`rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
+              location.pathname.includes("/communities")
+                ? "bg-teal-700 font-medium"
+                : ""
+            }`}
+          >
+            <span className="flex items-center">
+              <FaUsers className="mr-1" /> Community
+            </span>
+          </Link>
+          <Link
             to="/chat"
             className={`rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
               location.pathname.includes("/chat")
@@ -236,6 +259,18 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
             >
               <span className="flex items-center">
                 <MdLiveTv className="mr-2" /> My Conferences
+              </span>
+            </Link>
+            <Link
+              to="/communities"
+              className={`rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
+                location.pathname.includes("/communities")
+                  ? "bg-teal-700 font-medium"
+                  : ""
+              }`}
+            >
+              <span className="flex items-center">
+                <FaUsers className="mr-2" /> Community
               </span>
             </Link>
             <Link

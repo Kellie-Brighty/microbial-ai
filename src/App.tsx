@@ -523,14 +523,14 @@ export default function App() {
 
         {/* Main Chat Section */}
         <ChatContent
-              messages={messages}
+          messages={messages}
           threadLoading={threadLoading}
           setCreatThreadModal={setCreatThreadModal}
-              setMessages={setMessages}
-              input={input}
-              setInput={setInput}
-              threadId={threadId}
-              client={client}
+          setMessages={setMessages}
+          input={input}
+          setInput={setInput}
+          threadId={threadId}
+          client={client}
           userPersonalization={userPersonalization}
           addUserContextToMessages={addUserContextToMessages}
           currentUser={currentUser}
