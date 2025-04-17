@@ -3,7 +3,8 @@ import { format } from "date-fns";
 import { FiHeart, FiMessageSquare, FiSend } from "react-icons/fi";
 import { useCommunity } from "../../context/CommunityContext";
 import { CommunityPost } from "../../utils/communityModel";
-import CommentItem from "./CommentItem";
+// import CommentItem from "./CommentItem";
+import { useCommunityTheme } from "../../context/CommunityThemeContext";
 
 interface PostProps {
   post: CommunityPost;
@@ -20,6 +21,7 @@ const Post: React.FC<PostProps> = ({ post }) => {
     loadCommentsForPost,
     commentsByPostId,
   } = useCommunity();
+  const { isDarkMode } = useCommunityTheme();
 
   const userLiked = post.likedBy.includes(anonymousId || "");
   const comments = commentsByPostId[post.id || ""] || [];
@@ -61,23 +63,39 @@ const Post: React.FC<PostProps> = ({ post }) => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+    <div
+      className={`rounded-lg shadow-md overflow-hidden ${
+        isDarkMode ? "bg-gray-800" : "bg-white"
+      }`}
+    >
       <div className="p-4">
         <div className="flex items-start mb-3">
-          <div className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full p-2 mr-3">
+          <div
+            className={`rounded-full p-2 mr-3 ${
+              isDarkMode
+                ? "bg-blue-900 text-blue-200"
+                : "bg-blue-100 text-blue-800"
+            }`}
+          >
             <span className="font-semibold">
               {post.anonymousId.substring(0, 4)}
             </span>
           </div>
           <div className="flex-1">
-            <div className="text-sm text-gray-500 dark:text-gray-400">
+            <div
+              className={`text-sm ${
+                isDarkMode ? "text-gray-400" : "text-gray-500"
+              }`}
+            >
               {format(postDate, "MMM d, yyyy 'at' h:mm a")}
             </div>
           </div>
         </div>
 
         <div className="mb-4">
-          <p className="mb-3 text-gray-900 dark:text-gray-100">
+          <p
+            className={`mb-3 ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}
+          >
             {post.content}
           </p>
 
@@ -92,13 +110,19 @@ const Post: React.FC<PostProps> = ({ post }) => {
           )}
         </div>
 
-        <div className="flex border-t dark:border-gray-700 pt-3">
+        <div
+          className={`flex border-t pt-3 ${
+            isDarkMode ? "border-gray-700" : "border-gray-200"
+          }`}
+        >
           <button
             onClick={handleToggleLike}
             className={`flex items-center mr-6 ${
               userLiked
-                ? "text-red-500 dark:text-red-400"
-                : "text-gray-500 dark:text-gray-400"
+                ? "text-red-500"
+                : isDarkMode
+                ? "text-gray-400"
+                : "text-gray-500"
             }`}
           >
             <FiHeart
@@ -110,7 +134,9 @@ const Post: React.FC<PostProps> = ({ post }) => {
 
           <button
             onClick={handleToggleComments}
-            className="flex items-center text-gray-500 dark:text-gray-400"
+            className={`flex items-center ${
+              isDarkMode ? "text-gray-400" : "text-gray-500"
+            }`}
           >
             <FiMessageSquare className="mr-1" size={18} />
             <span>{post.commentCount}</span>
@@ -119,8 +145,20 @@ const Post: React.FC<PostProps> = ({ post }) => {
       </div>
 
       {showComments && (
-        <div className="bg-gray-50 dark:bg-gray-900 p-4 border-t dark:border-gray-700">
-          <h4 className="font-medium mb-3">Comments</h4>
+        <div
+          className={`p-4 border-t ${
+            isDarkMode
+              ? "bg-gray-900 border-gray-700"
+              : "bg-gray-50 border-gray-200"
+          }`}
+        >
+          <h4
+            className={`font-medium mb-3 ${
+              isDarkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
+            Comments
+          </h4>
 
           <form onSubmit={handleSubmitComment} className="mb-4 flex">
             <input
@@ -128,27 +166,39 @@ const Post: React.FC<PostProps> = ({ post }) => {
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Add a comment..."
-              className="flex-1 border dark:border-gray-700 rounded-lg px-3 py-2 mr-2 bg-white dark:bg-gray-800"
+              className={`flex-1 border rounded-lg px-3 py-2 mr-2 ${
+                isDarkMode
+                  ? "bg-gray-800 border-gray-700 text-white"
+                  : "bg-white border-gray-300 text-gray-900"
+              }`}
               disabled={isSubmitting}
             />
             <button
               type="submit"
               disabled={isSubmitting || !newComment.trim()}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-2 disabled:opacity-50"
+              className={`${
+                isDarkMode
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-blue-500 hover:bg-blue-600"
+              } text-white rounded-lg px-3 py-2 disabled:opacity-50`}
             >
               <FiSend size={18} />
             </button>
           </form>
 
           {comments.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">
+            <p
+              className={`text-center py-4 ${
+                isDarkMode ? "text-gray-400" : "text-gray-500"
+              }`}
+            >
               No comments yet. Be the first to comment!
             </p>
           ) : (
             <div className="space-y-4">
-              {comments.map((comment) => (
+              {/* {comments.map((comment) => (
                 <CommentItem key={comment.id} comment={comment} />
-              ))}
+              ))} */}
             </div>
           )}
         </div>

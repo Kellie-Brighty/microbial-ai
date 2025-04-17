@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  FaUsers,
-  FaComments,
   FaReply,
   FaRegComment,
   FaUserSecret,
@@ -9,9 +7,6 @@ import {
   FaPaperPlane,
   FaRegHeart,
   FaHeart,
-  FaTimesCircle,
-  FaSignInAlt,
-  FaLockOpen,
 } from "react-icons/fa";
 
 import { MdClose } from "react-icons/md";
@@ -36,6 +31,8 @@ import {
 
 import { uploadImageToImgbb } from "../../utils/imageUpload";
 import WhizparLogo from "../../assets/whizpar.png";
+import { useCommunityTheme } from "../../context/CommunityThemeContext";
+import DarkModeToggle from "../../components/community/DarkModeToggle";
 
 // Interface for community posts
 interface Post {
@@ -119,9 +116,11 @@ const CommunitiesPage: React.FC = () => {
 
   // Add new state for the engagement modal
   const [engagementModalOpen, setEngagementModalOpen] = useState(false);
-  const [engagementAction, setEngagementAction] = useState<
+  const [_engagementAction, setEngagementAction] = useState<
     "like" | "comment" | "post"
   >("post");
+
+  const { isDarkMode } = useCommunityTheme();
 
   // Fetch posts from Firebase on component mount
   useEffect(() => {
@@ -740,94 +739,124 @@ const CommunitiesPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
+    <div className="min-h-screen bg-gray-900 text-white dark:bg-white dark:text-gray-900">
       {/* Auth Modal */}
       {authModalOpen && (
         <AuthModal
           isOpen={authModalOpen}
           onClose={() => setAuthModalOpen(false)}
-          onSuccess={(message) => {
-            showNotification("success", message);
-            setAuthModalOpen(false);
-          }}
+          onSuccess={(message) => showNotification("success", message)}
         />
       )}
 
-      {/* Engagement Modal */}
+      {/* Engagement Modal for unauthenticated users */}
       {engagementModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative animate-fadeIn">
-            <button
-              onClick={() => setEngagementModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-            >
-              <FaTimesCircle size={20} />
-            </button>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div className="fixed inset-0 bg-gray-900 bg-opacity-75"></div>
 
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center mb-4 border border-gray-200 shadow-sm">
-                <img
-                  src={WhizparLogo}
-                  alt="Whizpar Logo"
-                  className="h-10 w-auto"
-                />
+          {/* Modal content */}
+          <div
+            className={`relative w-full max-w-md p-6 mx-4 rounded-lg shadow-xl overflow-hidden ${
+              isDarkMode ? "bg-gray-800" : "bg-white"
+            }`}
+          >
+            <div className="text-center">
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-purple-500 flex items-center justify-center">
+                  <img
+                    src={WhizparLogo}
+                    alt="Whizpar"
+                    className="w-10 h-10 text-white"
+                  />
+                </div>
               </div>
 
-              <h2 className="text-xl font-bold text-gray-800 mb-2">
-                {engagementAction === "like" && "Join to Like Posts"}
-                {engagementAction === "comment" && "Join the Conversation"}
-                {engagementAction === "post" && "Share Your Thoughts"}
-              </h2>
+              <h3
+                className={`text-xl font-bold mb-3 ${
+                  isDarkMode ? "text-white" : "text-gray-900"
+                }`}
+              >
+                Join to Like Posts
+              </h3>
 
-              <p className="text-gray-600 mb-4">
-                {engagementAction === "like" &&
-                  "Sign in to like posts and show appreciation for content that resonates with you."}
-                {engagementAction === "comment" &&
-                  "Sign in to join the discussion and share your insights with the scientific community."}
-                {engagementAction === "post" &&
-                  "Sign in to share your knowledge, ask questions, and connect with peers anonymously."}
+              <p
+                className={`mb-6 ${
+                  isDarkMode ? "text-gray-300" : "text-gray-500"
+                }`}
+              >
+                Sign in to like posts and show appreciation for content that
+                resonates with you.
               </p>
 
-              <div className="bg-gray-50 w-full rounded-lg p-4 mb-4 text-left">
-                <h3 className="font-medium text-gray-700 mb-2">
+              <div
+                className={`${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-100"
+                } rounded-lg p-4 mb-6`}
+              >
+                <h4
+                  className={`text-md font-medium mb-3 ${
+                    isDarkMode ? "text-white" : "text-gray-900"
+                  }`}
+                >
                   Why join Whizpar?
-                </h3>
-                <ul className="space-y-2 text-sm">
+                </h4>
+
+                <ul className="space-y-3 text-left">
                   <li className="flex items-start">
-                    <FaLockOpen className="text-mint mt-0.5 mr-2 flex-shrink-0" />
-                    <span>
+                    <span className="bg-green-400 p-1 rounded mr-2 text-white">
+                      🔒
+                    </span>
+                    <span
+                      className={isDarkMode ? "text-gray-300" : "text-gray-600"}
+                    >
                       Share your thoughts anonymously without fear of judgment
                     </span>
                   </li>
                   <li className="flex items-start">
-                    <FaUsers className="text-mint mt-0.5 mr-2 flex-shrink-0" />
-                    <span>
+                    <span className="bg-blue-400 p-1 rounded mr-2 text-white">
+                      👥
+                    </span>
+                    <span
+                      className={isDarkMode ? "text-gray-300" : "text-gray-600"}
+                    >
                       Connect with researchers who share your interests
                     </span>
                   </li>
                   <li className="flex items-start">
-                    <FaComments className="text-mint mt-0.5 mr-2 flex-shrink-0" />
-                    <span>Get feedback and insights from peers worldwide</span>
+                    <span className="bg-purple-400 p-1 rounded mr-2 text-white">
+                      💬
+                    </span>
+                    <span
+                      className={isDarkMode ? "text-gray-300" : "text-gray-600"}
+                    >
+                      Get feedback and insights from peers worldwide
+                    </span>
                   </li>
                 </ul>
               </div>
 
-              <button
-                onClick={() => {
-                  setEngagementModalOpen(false);
-                  setAuthModalOpen(true);
-                }}
-                className="w-full py-3 px-4 bg-mint hover:bg-mint/90 text-white font-medium rounded-lg flex items-center justify-center transition-colors"
-              >
-                <FaSignInAlt className="mr-2" /> Sign in to continue
-              </button>
+              <div className="flex flex-col space-y-3">
+                <button
+                  className="w-full py-2 bg-mint text-white rounded-lg hover:bg-purple transition-colors"
+                  onClick={() => {
+                    setEngagementModalOpen(false);
+                    setAuthModalOpen(true);
+                  }}
+                >
+                  Sign in to continue
+                </button>
 
-              <button
-                onClick={() => setEngagementModalOpen(false)}
-                className="mt-2 text-gray-500 hover:text-gray-700 text-sm"
-              >
-                Maybe later
-              </button>
+                <button
+                  className={`w-full py-2 rounded-lg transition-colors ${
+                    isDarkMode
+                      ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setEngagementModalOpen(false)}
+                >
+                  Maybe later
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -841,23 +870,44 @@ const CommunitiesPage: React.FC = () => {
         onClose={hideNotification}
       />
 
-      {/* Header Section */}
+      {/* Header */}
       <Header onAuthModalOpen={() => setAuthModalOpen(true)} />
 
+      {/* Position the dark mode toggle in a better location */}
+      <div className="absolute top-24 right-8 z-10">
+        <DarkModeToggle />
+      </div>
+
       {/* Hero Section */}
-      <div className="bg-gradient-to-br from-mint to-purple text-white relative pt-16 md:pt-20">
+      <div
+        className={`relative pt-16 md:pt-20 text-white ${
+          isDarkMode
+            ? "bg-gradient-to-br from-gray-800 to-purple-900"
+            : "bg-gradient-to-br from-mint to-purple"
+        }`}
+      >
         <div className="container mx-auto px-4 py-8 md:py-12 relative z-10">
           <div className="flex flex-col items-center text-center max-w-3xl mx-auto mb-4">
-            <div className="inline-flex items-center bg-white bg-opacity-20 backdrop-filter backdrop-blur-md rounded-full px-4 py-1 mb-4">
+            <div
+              className={`inline-flex items-center ${
+                isDarkMode ? "bg-gray-700" : "bg-white"
+              } ${
+                isDarkMode ? "bg-opacity-30" : "bg-opacity-20"
+              } backdrop-filter backdrop-blur-md rounded-full px-4 py-1 mb-4`}
+            >
               <img src={WhizparLogo} alt="Whizpar Logo" className="h-5 mr-2" />
-              <span className="text-sm font-medium text-mint">
+              <span
+                className={`text-sm font-medium ${
+                  isDarkMode ? "text-white" : "text-gray-900"
+                }`}
+              >
                 Powered by Whizpar
               </span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-2">
+            <h1 className="text-4xl md:text-5xl font-bold mb-2 text-white">
               The Anonymous Lounge
             </h1>
-            <p className="text-lg text-white/90 mb-0 max-w-2xl">
+            <p className="text-lg text-white mb-0 max-w-2xl">
               Where scientists speak freely. Share your thoughts, memes, and
               candid lab stories - all anonymously!
             </p>
@@ -875,29 +925,41 @@ const CommunitiesPage: React.FC = () => {
           >
             <path
               d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V0Z"
-              fill="#f9fafb"
+              fill={isDarkMode ? "#111827" : "#f9fafb"}
             ></path>
           </svg>
         </div>
       </div>
 
       {/* Community Feed Section */}
-      <div className="py-8 bg-gray-50">
+      <div className={`py-8 ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}>
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row gap-8">
             {/* Main content area */}
             <div className="md:w-8/12">
               {/* Post creation card */}
-              <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+              <div
+                className={`${
+                  isDarkMode ? "bg-gray-800" : "bg-white"
+                } rounded-xl shadow-sm p-6 mb-6`}
+              >
                 <div className="flex items-center mb-4">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-r from-mint to-purple flex items-center justify-center text-white mr-3">
                     <FaUserSecret />
                   </div>
                   <div>
-                    <h3 className="font-bold text-charcoal">
+                    <h3
+                      className={`font-bold ${
+                        isDarkMode ? "text-gray-100" : "text-charcoal"
+                      }`}
+                    >
                       Share Anonymously
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p
+                      className={`text-sm ${
+                        isDarkMode ? "text-gray-300" : "text-gray-500"
+                      }`}
+                    >
                       Your identity is completely hidden
                     </p>
                   </div>
@@ -905,7 +967,11 @@ const CommunitiesPage: React.FC = () => {
 
                 <form onSubmit={handleCreatePost} className="space-y-3">
                   <textarea
-                    className="w-full border border-gray-200 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-mint resize-none"
+                    className={`w-full border text-gray-700 ${
+                      isDarkMode
+                        ? "border-gray-600 text-gray-700 placeholder-gray-400"
+                        : "border-gray-200 bg-white"
+                    } rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-mint resize-none`}
                     placeholder={
                       currentUser
                         ? "What's on your mind? Share your lab stories, memes, or ask that question you've been afraid to ask..."
@@ -928,7 +994,9 @@ const CommunitiesPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleRemoveImage}
-                        className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-md hover:bg-gray-100"
+                        className={`absolute -top-2 -right-2 ${
+                          isDarkMode ? "bg-gray-800" : "bg-white"
+                        } rounded-full p-1 shadow-md hover:bg-gray-100`}
                         disabled={uploadingPost}
                       >
                         <MdClose className="text-gray-600" />
@@ -936,7 +1004,11 @@ const CommunitiesPage: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                  <div
+                    className={`flex justify-between items-center pt-2 border-t ${
+                      isDarkMode ? "border-gray-700" : "border-gray-100"
+                    }`}
+                  >
                     <div className="flex space-x-2">
                       <input
                         type="file"
@@ -949,7 +1021,11 @@ const CommunitiesPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleSelectImageClick}
-                        className={`p-2 rounded-full text-gray-500 hover:bg-gray-100 ${
+                        className={`p-2 rounded-full ${
+                          isDarkMode
+                            ? "text-gray-300 hover:bg-gray-700"
+                            : "text-gray-500 hover:bg-gray-100"
+                        } ${
                           !currentUser || uploadingPost
                             ? "opacity-50 cursor-not-allowed"
                             : "hover:text-mint"
@@ -994,7 +1070,11 @@ const CommunitiesPage: React.FC = () => {
 
               {/* Recent posts header */}
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-charcoal">
+                <h2
+                  className={`text-xl font-bold ${
+                    isDarkMode ? "text-gray-100" : "text-charcoal"
+                  }`}
+                >
                   Anonymous Discussions
                 </h2>
               </div>
@@ -1003,18 +1083,36 @@ const CommunitiesPage: React.FC = () => {
               {loading && (
                 <div className="text-center py-12">
                   <div className="inline-block w-8 h-8 border-4 border-mint border-t-transparent rounded-full animate-spin mb-4"></div>
-                  <p className="text-gray-500">Loading posts...</p>
+                  <p
+                    className={`${
+                      isDarkMode ? "text-gray-300" : "text-gray-500"
+                    }`}
+                  >
+                    Loading posts...
+                  </p>
                 </div>
               )}
 
               {/* Empty state */}
               {!loading && posts.length === 0 && (
-                <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+                <div
+                  className={`${
+                    isDarkMode ? "bg-gray-800" : "bg-white"
+                  } rounded-xl shadow-sm p-8 text-center`}
+                >
                   <div className="text-6xl mb-4">🤫</div>
-                  <h3 className="text-xl font-bold text-charcoal mb-2">
+                  <h3
+                    className={`text-xl font-bold ${
+                      isDarkMode ? "text-gray-100" : "text-charcoal"
+                    } mb-2`}
+                  >
                     No Posts Yet
                   </h3>
-                  <p className="text-gray-600 mb-6">
+                  <p
+                    className={`${
+                      isDarkMode ? "text-gray-300" : "text-gray-600"
+                    } mb-6`}
+                  >
                     Be the first to share something in the Anonymous Lounge!
                   </p>
                   {!currentUser && (
@@ -1034,20 +1132,40 @@ const CommunitiesPage: React.FC = () => {
                   {posts.map((post) => (
                     <div
                       key={post.id}
-                      className="bg-white rounded-xl shadow-sm overflow-hidden"
+                      className={`${
+                        isDarkMode ? "bg-gray-800" : "bg-white"
+                      } rounded-xl shadow-sm overflow-hidden`}
                     >
                       <div className="p-6">
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <div className="flex items-center">
-                              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-3 text-gray-500">
+                              <div
+                                className={`w-8 h-8 ${
+                                  isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                                } rounded-full flex items-center justify-center ${
+                                  isDarkMode ? "text-gray-300" : "text-gray-500"
+                                } mr-3`}
+                              >
                                 <FaUserSecret />
                               </div>
                               <div>
-                                <h4 className="font-medium text-charcoal">
+                                <h4
+                                  className={`font-medium ${
+                                    isDarkMode
+                                      ? "text-gray-100"
+                                      : "text-charcoal"
+                                  }`}
+                                >
                                   {post.author}
                                 </h4>
-                                <span className="text-xs text-gray-500">
+                                <span
+                                  className={`text-xs ${
+                                    isDarkMode
+                                      ? "text-gray-300"
+                                      : "text-gray-500"
+                                  }`}
+                                >
                                   {formatRelativeTime(post.timestamp)}
                                 </span>
                               </div>
@@ -1057,7 +1175,9 @@ const CommunitiesPage: React.FC = () => {
 
                         <div className="mb-3">
                           <p
-                            className={`text-gray-800 ${
+                            className={`${
+                              isDarkMode ? "text-gray-100" : "text-gray-800"
+                            } ${
                               !expandedPostId || expandedPostId !== post.id
                                 ? "line-clamp-4"
                                 : ""
@@ -1083,7 +1203,11 @@ const CommunitiesPage: React.FC = () => {
                             {post.tags.map((tag, index) => (
                               <span
                                 key={index}
-                                className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs hover:bg-gray-200 cursor-pointer"
+                                className={`${
+                                  isDarkMode
+                                    ? "bg-gray-700 text-gray-200"
+                                    : "bg-gray-100 text-gray-600"
+                                } px-2 py-1 rounded-full text-xs hover:bg-gray-200 cursor-pointer`}
                               >
                                 #{tag}
                               </span>
@@ -1102,7 +1226,13 @@ const CommunitiesPage: React.FC = () => {
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between text-sm text-gray-500 border-t border-gray-100 pt-3 mt-1">
+                        <div
+                          className={`flex items-center justify-between text-sm ${
+                            isDarkMode
+                              ? "text-gray-300 border-gray-700"
+                              : "text-gray-500 border-gray-100"
+                          } border-t pt-3 mt-1`}
+                        >
                           <div className="flex items-center space-x-4">
                             <button
                               className={`flex items-center hover:text-mint transition-colors ${
@@ -1134,21 +1264,41 @@ const CommunitiesPage: React.FC = () => {
 
                         {/* Comments Section */}
                         {expandedComments.includes(post.id) && (
-                          <div className="border-t border-gray-100 px-3 sm:px-6 py-4 bg-gray-50">
-                            <h4 className="font-medium text-gray-700 mb-4">
+                          <div
+                            className={`border-t ${
+                              isDarkMode
+                                ? "border-gray-700 bg-gray-700"
+                                : "border-gray-100 bg-gray-50"
+                            } px-3 sm:px-6 py-4`}
+                          >
+                            <h4
+                              className={`font-medium ${
+                                isDarkMode ? "text-gray-100" : "text-gray-700"
+                              } mb-4`}
+                            >
                               Comments
                             </h4>
 
                             {/* Add Comment Form */}
                             <div className="flex items-start sm:items-center mb-6">
-                              <div className="w-8 h-8 bg-gray-200 rounded-full flex-shrink-0 flex items-center justify-center mr-2 sm:mr-3 text-gray-500 mt-1 sm:mt-0">
+                              <div
+                                className={`w-8 h-8 ${
+                                  isDarkMode
+                                    ? "bg-gray-600 text-gray-300"
+                                    : "bg-gray-200 text-gray-500"
+                                } rounded-full flex-shrink-0 flex items-center justify-center mr-2 sm:mr-3 mt-1 sm:mt-0`}
+                              >
                                 <FaUserSecret />
                               </div>
                               <div className="flex-1 flex flex-col sm:flex-row">
                                 <input
                                   type="text"
                                   placeholder="Write a comment..."
-                                  className="flex-1 border border-gray-200 rounded-lg sm:rounded-l-lg sm:rounded-r-none px-3 py-2 focus:outline-none focus:ring-1 focus:ring-mint text-sm"
+                                  className={`flex-1 border text-gray-700 ${
+                                    isDarkMode
+                                      ? "border-gray-600 text-gray-700 placeholder-gray-400"
+                                      : "border-gray-200 bg-white placeholder-gray-400"
+                                  } rounded-lg sm:rounded-l-lg sm:rounded-r-none px-3 py-2 focus:outline-none focus:ring-1 focus:ring-mint text-sm`}
                                   value={commentContent[post.id] || ""}
                                   onChange={(e) =>
                                     setCommentContent({
@@ -1163,7 +1313,11 @@ const CommunitiesPage: React.FC = () => {
                                     currentUser &&
                                     (commentContent[post.id]?.trim() || "")
                                       ? "bg-mint text-white hover:bg-mint/90"
-                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                      : `${
+                                          isDarkMode
+                                            ? "bg-gray-600 text-gray-400"
+                                            : "bg-gray-200 text-gray-500"
+                                        } cursor-not-allowed`
                                   }`}
                                   onClick={() => addComment(post.id)}
                                   disabled={
@@ -1181,7 +1335,13 @@ const CommunitiesPage: React.FC = () => {
                             {loadingComments[post.id] ? (
                               <div className="text-center py-6">
                                 <div className="inline-block w-6 h-6 border-2 border-mint border-t-transparent rounded-full animate-spin"></div>
-                                <p className="text-gray-500 mt-2">
+                                <p
+                                  className={`${
+                                    isDarkMode
+                                      ? "text-gray-300"
+                                      : "text-gray-500"
+                                  } mt-2`}
+                                >
                                   Loading comments...
                                 </p>
                               </div>
@@ -1190,24 +1350,52 @@ const CommunitiesPage: React.FC = () => {
                                 {postComments[post.id].map((comment) => (
                                   <div
                                     key={comment.id}
-                                    className="border-l-2 border-gray-300 pl-3 sm:pl-4 py-2 hover:bg-gray-100/50 rounded-r-lg transition-colors"
+                                    className={`border-l-2 ${
+                                      isDarkMode
+                                        ? "border-gray-600 pl-3 sm:pl-4 py-2 hover:bg-gray-600/50"
+                                        : "border-gray-300 pl-3 sm:pl-4 py-2 hover:bg-gray-100/50"
+                                    } rounded-r-lg transition-colors`}
                                   >
                                     <div className="flex items-start">
-                                      <div className="w-6 sm:w-7 h-6 sm:h-7 bg-gray-200 rounded-full flex-shrink-0 flex items-center justify-center mr-2 text-gray-500 text-xs">
+                                      <div
+                                        className={`w-6 sm:w-7 h-6 sm:h-7 ${
+                                          isDarkMode
+                                            ? "bg-gray-600 text-gray-300"
+                                            : "bg-gray-200 text-gray-500"
+                                        } rounded-full flex-shrink-0 flex items-center justify-center mr-2 text-xs`}
+                                      >
                                         <FaUserSecret />
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <div className="flex flex-wrap items-center mb-1">
-                                          <span className="font-medium text-sm text-gray-800 mr-2 break-all">
+                                          <span
+                                            className={`font-medium text-sm ${
+                                              isDarkMode
+                                                ? "text-gray-200"
+                                                : "text-gray-800"
+                                            } mr-2 break-all`}
+                                          >
                                             {comment.author}
                                           </span>
-                                          <span className="text-xs text-gray-500">
+                                          <span
+                                            className={`text-xs ${
+                                              isDarkMode
+                                                ? "text-gray-400"
+                                                : "text-gray-500"
+                                            }`}
+                                          >
                                             {formatRelativeTime(
                                               comment.timestamp
                                             )}
                                           </span>
                                         </div>
-                                        <p className="text-sm text-gray-800 mb-2 break-words">
+                                        <p
+                                          className={`text-sm ${
+                                            isDarkMode
+                                              ? "text-gray-200"
+                                              : "text-gray-800"
+                                          } mb-2 break-words`}
+                                        >
                                           {comment.content}
                                         </p>
 
@@ -1219,6 +1407,8 @@ const CommunitiesPage: React.FC = () => {
                                                 currentUser?.uid || ""
                                               )
                                                 ? "text-red-500"
+                                                : isDarkMode
+                                                ? "text-gray-300"
                                                 : "text-gray-500"
                                             }`}
                                             onClick={() =>
@@ -1242,7 +1432,11 @@ const CommunitiesPage: React.FC = () => {
                                             <span>{comment.likes}</span>
                                           </button>
                                           <button
-                                            className="text-xs text-gray-500 hover:text-mint transition-colors flex items-center"
+                                            className={`text-xs ${
+                                              isDarkMode
+                                                ? "text-gray-300 hover:text-mint"
+                                                : "text-gray-500 hover:text-mint"
+                                            } transition-colors flex items-center`}
                                             onClick={() =>
                                               toggleReplies(comment.id)
                                             }
@@ -1262,14 +1456,24 @@ const CommunitiesPage: React.FC = () => {
                                           <div className="mt-3 pl-2 sm:pl-4">
                                             {/* Reply Form */}
                                             <div className="flex items-start mb-3">
-                                              <div className="w-5 h-5 bg-gray-200 rounded-full flex-shrink-0 flex items-center justify-center mr-2 text-gray-500 text-xs mt-1">
+                                              <div
+                                                className={`w-5 h-5 ${
+                                                  isDarkMode
+                                                    ? "bg-gray-600 text-gray-300"
+                                                    : "bg-gray-200 text-gray-500"
+                                                } rounded-full flex-shrink-0 flex items-center justify-center mr-2 text-xs mt-1`}
+                                              >
                                                 <FaUserSecret />
                                               </div>
                                               <div className="flex-1 flex flex-col sm:flex-row">
                                                 <input
                                                   type="text"
                                                   placeholder="Write a reply..."
-                                                  className="flex-1 border border-gray-200 rounded-lg sm:rounded-l-lg sm:rounded-r-none px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-mint"
+                                                  className={`flex-1 border text-gray-700 ${
+                                                    isDarkMode
+                                                      ? "border-gray-600 text-gray-700 placeholder-gray-400"
+                                                      : "border-gray-200 bg-white placeholder-gray-400"
+                                                  } rounded-lg sm:rounded-l-lg sm:rounded-r-none px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-mint`}
                                                   value={
                                                     replyContent[comment.id] ||
                                                     ""
@@ -1291,7 +1495,11 @@ const CommunitiesPage: React.FC = () => {
                                                     ]?.trim() ||
                                                       "")
                                                       ? "bg-mint text-white hover:bg-mint/90"
-                                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                                      : `${
+                                                          isDarkMode
+                                                            ? "bg-gray-600 text-gray-400"
+                                                            : "bg-gray-200 text-gray-500"
+                                                        } cursor-not-allowed`
                                                   }`}
                                                   onClick={() =>
                                                     addReply(
@@ -1331,24 +1539,52 @@ const CommunitiesPage: React.FC = () => {
                                                   (reply) => (
                                                     <div
                                                       key={reply.id}
-                                                      className="border-l-2 border-gray-200 pl-2 sm:pl-3 py-1 hover:bg-gray-100/50 rounded-r-lg transition-colors"
+                                                      className={`border-l-2 ${
+                                                        isDarkMode
+                                                          ? "border-gray-600 pl-2 sm:pl-3 py-1 hover:bg-gray-600/50"
+                                                          : "border-gray-200 pl-2 sm:pl-3 py-1 hover:bg-gray-100/50"
+                                                      } rounded-r-lg transition-colors`}
                                                     >
                                                       <div className="flex items-start">
-                                                        <div className="w-4 sm:w-5 h-4 sm:h-5 bg-gray-200 rounded-full flex-shrink-0 flex items-center justify-center mr-2 text-gray-500 text-xs">
+                                                        <div
+                                                          className={`w-4 sm:w-5 h-4 sm:h-5 ${
+                                                            isDarkMode
+                                                              ? "bg-gray-600 text-gray-300"
+                                                              : "bg-gray-200 text-gray-500"
+                                                          } rounded-full flex-shrink-0 flex items-center justify-center mr-2 text-xs`}
+                                                        >
                                                           <FaUserSecret />
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                           <div className="flex flex-wrap items-center mb-1">
-                                                            <span className="font-medium text-xs text-gray-700 mr-2 break-all">
+                                                            <span
+                                                              className={`font-medium text-xs ${
+                                                                isDarkMode
+                                                                  ? "text-gray-200"
+                                                                  : "text-gray-700"
+                                                              } mr-2 break-all`}
+                                                            >
                                                               {reply.author}
                                                             </span>
-                                                            <span className="text-xs text-gray-500">
+                                                            <span
+                                                              className={`text-xs ${
+                                                                isDarkMode
+                                                                  ? "text-gray-400"
+                                                                  : "text-gray-500"
+                                                              }`}
+                                                            >
                                                               {formatRelativeTime(
                                                                 reply.timestamp
                                                               )}
                                                             </span>
                                                           </div>
-                                                          <p className="text-xs text-gray-800 break-words">
+                                                          <p
+                                                            className={`text-xs ${
+                                                              isDarkMode
+                                                                ? "text-gray-200"
+                                                                : "text-gray-800"
+                                                            } break-words`}
+                                                          >
                                                             {reply.content}
                                                           </p>
 
@@ -1360,6 +1596,8 @@ const CommunitiesPage: React.FC = () => {
                                                                   ""
                                                               )
                                                                 ? "text-red-500"
+                                                                : isDarkMode
+                                                                ? "text-gray-300"
                                                                 : "text-gray-500"
                                                             }`}
                                                             onClick={() =>
@@ -1396,7 +1634,13 @@ const CommunitiesPage: React.FC = () => {
                                                 )}
                                               </div>
                                             ) : (
-                                              <p className="text-xs text-gray-500 text-center py-2">
+                                              <p
+                                                className={`text-xs ${
+                                                  isDarkMode
+                                                    ? "text-gray-400"
+                                                    : "text-gray-500"
+                                                } text-center py-2`}
+                                              >
                                                 No replies yet
                                               </p>
                                             )}
@@ -1408,10 +1652,18 @@ const CommunitiesPage: React.FC = () => {
                                 ))}
                               </div>
                             ) : (
-                              <div className="text-center py-6 bg-white rounded-lg border border-gray-200">
-                                <p className="text-gray-500">
-                                  No comments yet. Be the first to comment!
-                                </p>
+                              <div
+                                className={`text-center py-6 ${
+                                  isDarkMode
+                                    ? "bg-gray-800 text-gray-300"
+                                    : "bg-white text-gray-500"
+                                } rounded-lg border ${
+                                  isDarkMode
+                                    ? "border-gray-700"
+                                    : "border-gray-200"
+                                }`}
+                              >
+                                <p>No comments yet. Be the first to comment!</p>
                               </div>
                             )}
                           </div>
@@ -1435,9 +1687,19 @@ const CommunitiesPage: React.FC = () => {
             {/* Sidebar */}
             <div className="md:w-4/12">
               {/* About Whizpar box */}
-              <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+              <div
+                className={`${
+                  isDarkMode ? "bg-gray-800" : "bg-white"
+                } rounded-xl shadow-sm p-6 mb-6`}
+              >
                 <div className="flex items-center mb-4">
-                  <div className="rounded-full bg-white border border-gray-200 p-2 mr-3 flex items-center justify-center shadow-sm">
+                  <div
+                    className={`rounded-full ${
+                      isDarkMode ? "bg-gray-900" : "bg-white"
+                    } border ${
+                      isDarkMode ? "border-gray-700" : "border-gray-200"
+                    } p-2 mr-3 flex items-center justify-center shadow-sm`}
+                  >
                     <img
                       src={WhizparLogo}
                       alt="Whizpar Logo"
@@ -1445,24 +1707,48 @@ const CommunitiesPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <h3 className="font-bold text-charcoal">
+                    <h3
+                      className={`font-bold ${
+                        isDarkMode ? "text-gray-100" : "text-charcoal"
+                      }`}
+                    >
                       Powered by Whizpar
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p
+                      className={`text-sm ${
+                        isDarkMode ? "text-gray-300" : "text-gray-500"
+                      }`}
+                    >
                       Anonymous & secure discussions
                     </p>
                   </div>
                 </div>
-                <p className="text-gray-600 text-sm mb-3">
+                <p
+                  className={`${
+                    isDarkMode ? "text-gray-200" : "text-gray-600"
+                  } text-sm mb-3`}
+                >
                   Microbial AI's anonymous community lets you speak freely about
                   your research, lab life, and more without revealing your
                   identity.
                 </p>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <h4 className="font-medium text-charcoal text-sm mb-2">
+                <div
+                  className={`${
+                    isDarkMode ? "bg-gray-700" : "bg-gray-50"
+                  } rounded-lg p-3`}
+                >
+                  <h4
+                    className={`font-medium ${
+                      isDarkMode ? "text-gray-100" : "text-charcoal"
+                    } text-sm mb-2`}
+                  >
                     Why go anonymous?
                   </h4>
-                  <ul className="text-sm space-y-2 text-gray-600">
+                  <ul
+                    className={`text-sm space-y-2 ${
+                      isDarkMode ? "text-gray-200" : "text-gray-600"
+                    }`}
+                  >
                     <li className="flex items-start">
                       <div className="h-2 w-2 rounded-full bg-mint mt-1.5 mr-2 flex-shrink-0"></div>
                       <span>Share honest opinions without judgment</span>
@@ -1480,11 +1766,23 @@ const CommunitiesPage: React.FC = () => {
               </div>
 
               {/* Community rules */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="font-bold text-charcoal mb-4">
+              <div
+                className={`${
+                  isDarkMode ? "bg-gray-800" : "bg-white"
+                } rounded-xl shadow-sm p-6`}
+              >
+                <h3
+                  className={`font-bold ${
+                    isDarkMode ? "text-gray-100" : "text-charcoal"
+                  } mb-4`}
+                >
                   Community Guidelines
                 </h3>
-                <ul className="space-y-3 text-sm text-gray-600">
+                <ul
+                  className={`space-y-3 text-sm ${
+                    isDarkMode ? "text-gray-200" : "text-gray-600"
+                  }`}
+                >
                   <li className="flex items-start">
                     <div className="text-mint mr-2 flex-shrink-0">1.</div>
                     <p>Be respectful to others, even in disagreement</p>

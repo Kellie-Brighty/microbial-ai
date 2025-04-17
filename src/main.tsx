@@ -15,6 +15,7 @@ import { startConferenceStatusTimer } from "./utils/conferenceStatus";
 import CommunitiesPage from "./pages/community/CommunitiesPage";
 import CommunityPage from "./pages/community/CommunityPage";
 import { CommunityProvider } from "./context/CommunityContext";
+import { CommunityThemeProvider } from "./context/CommunityThemeContext";
 
 // Initialize debugging
 initDebugging();
@@ -118,13 +119,26 @@ try {
                 <Route path="/dashboard" element={<UserDashboard />} />
 
                 {/* Community Routes */}
-                <Route path="/communities" element={<CommunitiesPage />} />
+                <Route
+                  path="/communities"
+                  element={
+                    <CommunityThemeProvider>
+                      <div className="min-h-screen">
+                        <CommunitiesPage />
+                      </div>
+                    </CommunityThemeProvider>
+                  }
+                />
                 <Route
                   path="/community/:communityId"
                   element={
-                    <CommunityProvider>
-                      <CommunityPage />
-                    </CommunityProvider>
+                    <CommunityThemeProvider>
+                      <div className="min-h-screen">
+                        <CommunityProvider>
+                          <CommunityPage />
+                        </CommunityProvider>
+                      </div>
+                    </CommunityThemeProvider>
                   }
                 />
 

@@ -286,7 +286,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
       id: `user-message-${Date.now()}`,
       object: "thread.message",
       created_at: Math.floor(Date.now() / 1000),
-        thread_id: threadId || "",
+      thread_id: threadId || "",
       role: "user",
       content: [
         {
@@ -337,10 +337,15 @@ IMPORTANT GUIDELINES:
 1. ALWAYS provide sophisticated, detailed, and technically accurate responses about microbiology topics.
 2. Focus EXCLUSIVELY on microbiology - if a query relates to general biology but not microbiology, redirect the conversation toward its microbiology aspects.
 3. Adapt your technical level to the user's expertise - if their profile indicates they are a beginner, explain complex concepts in simpler terms while still maintaining scientific accuracy.
-4. For mycology and other microbiology subfields, emphasize their relationship to microbiology specifically.
+4. For mycology and other microbiology subfields, emphasize their relationship to microbiology specifically. Never describe mycology as a "branch of biology" but rather as a "branch of microbiology focusing on fungi".
 5. Include relevant microbiology-specific terminology, methodologies, and recent research when appropriate.
 6. You have direct access to the user's profile information and preferences. When the user asks about their profile, interests, or preferences, use the profile data provided above.
 7. If the user mentions updating their profile, respond as if you have just fetched their latest profile data.
+8. CRITICAL: When discussing any topic that overlaps with other sciences (like biochemistry, genetics, cellular processes), ONLY discuss them in the context of microbiology. Never reference general biology or other sciences as separate fields.
+9. For educational questions, ONLY answer from the perspective of a microbiology curriculum, not general biology or other sciences.
+10. When explaining concepts, always frame them as "in microbiology" rather than "in biology" or other disciplines.
+11. HIGHEST PRIORITY: Always provide factually accurate scientific information. Never compromise on accuracy - simply present the correct information within microbiology's framework.
+12. When asked about a topic that traditionally spans multiple disciplines (like biochemistry), don't deflect or avoid answering - provide factually correct information but frame it entirely within microbiology's context.
 
 If the user references specific interests that aren't in the profile data provided, gracefully acknowledge you don't see those specific items in their current profile.`,
         };
@@ -350,7 +355,7 @@ If the user references specific interests that aren't in the profile data provid
         systemMessage = {
           role: "system",
           content:
-            "You are Microbial AI, a specialized microbiology research assistant with expertise specifically in microbiology, not general biology. You don't have access to user profile information because the user is not signed in. IMPORTANT: Always provide sophisticated, detailed responses about microbiology topics. Focus EXCLUSIVELY on microbiology - if a query relates to general biology but not microbiology, redirect the conversation toward its microbiology aspects. For mycology and other microbiology subfields, emphasize their relationship to microbiology specifically. Include relevant microbiology-specific terminology, methodologies, and recent research when appropriate. If they ask about their profile data, suggest they sign in to enable personalized interactions.",
+            "You are Microbial AI, a specialized microbiology research assistant with expertise specifically in microbiology, not general biology. You don't have access to user profile information because the user is not signed in. IMPORTANT: Always provide sophisticated, detailed responses about microbiology topics. Focus EXCLUSIVELY on microbiology - if a query relates to general biology but not microbiology, redirect the conversation toward its microbiology aspects. For mycology and other microbiology subfields, ALWAYS describe them as branches of microbiology (e.g., 'Mycology is the branch of microbiology that focuses on fungi'), never as branches of general biology. Include relevant microbiology-specific terminology, methodologies, and recent research when appropriate. CRITICAL: When discussing any topic that overlaps with other sciences (like biochemistry, genetics, cellular processes), ONLY discuss them in the context of microbiology. Never reference biology or other sciences as separate fields. For educational questions, ONLY answer from the perspective of a microbiology curriculum. HIGHEST PRIORITY: Always provide factually accurate scientific information. When asked about a topic that traditionally spans multiple disciplines, don't deflect or avoid answering - provide factually correct information but frame it entirely within microbiology's context. If they ask about their profile data, suggest they sign in to enable personalized interactions.",
         };
       }
 
@@ -485,19 +490,19 @@ If the user references specific interests that aren't in the profile data provid
           created_at: Math.floor(Date.now() / 1000),
           thread_id: typeof thread === "string" ? thread : thread.id || "",
           role: "assistant",
-            content: [
-              {
-                type: "text",
+          content: [
+            {
+              type: "text",
               text: {
                 value: responseText,
                 annotations: [],
               },
-              },
-            ],
+            },
+          ],
           assistant_id: "assistant-id",
           run_id: "run-id",
           attachments: [],
-            metadata: {},
+          metadata: {},
         };
 
         setMessages((prevMessages) => [...prevMessages, assistantMessage]);
@@ -509,20 +514,20 @@ If the user references specific interests that aren't in the profile data provid
           created_at: Math.floor(Date.now() / 1000),
           thread_id: typeof thread === "string" ? thread : thread.id || "",
           role: "assistant",
-            content: [
-              {
-                type: "text",
+          content: [
+            {
+              type: "text",
               text: {
                 value:
                   "I'm sorry, I couldn't generate a response at this time. Please try again later.",
                 annotations: [],
               },
-              },
-            ],
+            },
+          ],
           assistant_id: "assistant-id",
           run_id: "run-id",
           attachments: [],
-            metadata: {},
+          metadata: {},
         };
 
         setMessages((prevMessages) => [...prevMessages, errorMessage]);
