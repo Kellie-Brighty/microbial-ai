@@ -678,6 +678,19 @@ const ConferenceDetailPage: React.FC = () => {
                               Code
                             </button>
                           </div>
+
+                          <div className="mt-4 pt-4 border-t border-green-200">
+                            <h3 className="text-sm font-medium text-charcoal mb-2">
+                              Conference Activities:
+                            </h3>
+                            <Link
+                              to={`/conferences/${id}/quizzes`}
+                              className="bg-blue-600 text-white text-sm px-3 py-2 rounded-md flex items-center hover:bg-blue-700 transition-colors mt-2 w-full justify-center"
+                            >
+                              <span className="mr-2">🧠</span> Take Quiz
+                              Sessions
+                            </Link>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -754,11 +767,20 @@ const ConferenceDetailPage: React.FC = () => {
                         </a>
 
                         {isRegistered ? (
-                          <div className="flex items-center justify-center bg-white border border-red-200 text-red-600 px-4 py-2 rounded-lg">
-                            <FaCheckCircle className="mr-2" size={16} />
-                            <span className="font-medium">
-                              You are registered for this event
-                            </span>
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center justify-center bg-white border border-red-200 text-red-600 px-4 py-2 rounded-lg">
+                              <FaCheckCircle className="mr-2" size={16} />
+                              <span className="font-medium">
+                                You are registered for this event
+                              </span>
+                            </div>
+                            <Link
+                              to={`/conferences/${id}/quizzes`}
+                              className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center justify-center hover:bg-blue-700 transition-colors"
+                            >
+                              <span className="mr-2">🧠</span> Participate in
+                              Quiz Sessions
+                            </Link>
                           </div>
                         ) : (
                           <div className="text-sm text-center text-gray-600 p-2">
@@ -800,24 +822,16 @@ const ConferenceDetailPage: React.FC = () => {
                           Registrants
                         </Link>
                         <Link
-                          to="/dashboard"
-                          className="inline-flex items-center justify-center bg-gray-100 text-gray-700 hover:bg-gray-200 px-4 py-2 rounded-md text-sm transition-colors"
+                          to={`/conferences/${id}/quizzes`}
+                          className="bg-blue-600 text-white text-sm px-4 py-2 rounded-md flex items-center justify-center hover:bg-blue-700 transition-colors"
                         >
-                          Go to Dashboard
-                          <svg
-                            className="w-3 h-3 ml-1"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
+                          <span className="mr-2">🧠</span> Manage Quiz Sessions
+                        </Link>
+                        <Link
+                          to="/dashboard"
+                          className="bg-gray-500 text-white text-sm px-4 py-2 rounded-md flex items-center justify-center hover:bg-gray-600 transition-colors"
+                        >
+                          <span className="mr-2">📊</span> Go to Dashboard
                         </Link>
                       </div>
                     </div>

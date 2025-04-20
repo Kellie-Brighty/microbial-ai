@@ -11,6 +11,10 @@ import {
   getConferenceCertificates,
   getUserCertificates,
   Certificate,
+  getUserQuizSubmissions,
+  QuizSubmission,
+  getQuiz,
+  Quiz,
   // signOut,
   // auth,
 } from "../../utils/firebase";
@@ -27,6 +31,10 @@ import {
   FaQrcode,
   FaMapMarkerAlt,
   FaGraduationCap,
+  FaMedal,
+  FaTrophy,
+  FaBrain,
+  FaTimes,
 } from "react-icons/fa";
 import { MdAddCircle } from "react-icons/md";
 import Notification from "../../components/ui/Notification";
@@ -182,6 +190,146 @@ Verified: YES`;
   );
 };
 
+// Add a Points Breakdown modal component
+interface PointsBreakdownModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  quizSubmissions: Array<QuizSubmission & { quiz?: Quiz }>;
+  totalPoints: number;
+}
+
+const PointsBreakdownModal: React.FC<PointsBreakdownModalProps> = ({
+  isOpen,
+  onClose,
+  quizSubmissions,
+  totalPoints,
+}) => {
+  if (!isOpen) return null;
+
+  // Sort submissions by score percentage (highest first)
+  const sortedSubmissions = [...quizSubmissions].sort((a, b) => {
+    const aPercentage = (a.score / a.maxPossibleScore) * 100;
+    const bPercentage = (b.score / b.maxPossibleScore) * 100;
+    return bPercentage - aPercentage;
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-lg max-w-3xl w-full p-6 max-h-[80vh] overflow-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-charcoal">Your Quiz Points</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <FaTimes size={20} />
+          </button>
+        </div>
+
+        <div className="mb-6 bg-offWhite p-4 rounded-lg border border-lightGray">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <FaTrophy className="text-yellow-500 mr-3 text-2xl" />
+              <div>
+                <h4 className="font-bold text-lg text-charcoal">
+                  Total Points
+                </h4>
+                <p className="text-gray-600">From all quiz completions</p>
+              </div>
+            </div>
+            <div className="text-3xl font-bold text-mint">{totalPoints}</div>
+          </div>
+        </div>
+
+        <h4 className="font-bold text-lg text-charcoal mb-3">
+          Points Breakdown
+        </h4>
+
+        {quizSubmissions.length === 0 ? (
+          <div className="text-center py-6 bg-gray-50 rounded-lg">
+            <FaBrain className="mx-auto text-gray-300 text-3xl mb-2" />
+            <p className="text-gray-500">
+              You haven't completed any quizzes yet
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {sortedSubmissions.map((submission) => {
+              const scorePercentage = Math.round(
+                (submission.score / submission.maxPossibleScore) * 100
+              );
+              const isPassing = scorePercentage >= 70;
+
+              return (
+                <div
+                  key={submission.id}
+                  className="border rounded-lg overflow-hidden"
+                >
+                  <div
+                    className={`p-3 border-b ${
+                      isPassing
+                        ? "bg-green-50 border-green-100"
+                        : "bg-red-50 border-red-100"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <h5 className="font-medium text-charcoal">
+                        {submission.quiz?.title || "Quiz"}
+                      </h5>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          isPassing
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {scorePercentage}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-white">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-gray-600">
+                        <div>
+                          Points earned:{" "}
+                          <span className="font-bold">{submission.score}</span>
+                        </div>
+                        <div>Total possible: {submission.maxPossibleScore}</div>
+                        {submission.completedAt && (
+                          <div className="text-xs mt-1 text-gray-500">
+                            Completed on{" "}
+                            {new Date(
+                              submission.completedAt.seconds * 1000
+                            ).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-2xl font-bold text-mint">
+                        +{submission.score}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-mint text-white rounded-lg hover:bg-purple transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const UserDashboard: React.FC = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -192,14 +340,21 @@ const UserDashboard: React.FC = () => {
     Conference[]
   >([]);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [quizSubmissions, setQuizSubmissions] = useState<
+    Array<QuizSubmission & { quiz?: Quiz }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [organizerLoading, setOrganizerLoading] = useState(true);
   const [certificatesLoading, setCertificatesLoading] = useState(true);
+  const [_quizSubmissionsLoading, setQuizSubmissionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [organizerError, setOrganizerError] = useState<string | null>(null);
   const [certificatesError, setCertificatesError] = useState<string | null>(
     null
   );
+  const [_quizSubmissionsError, setQuizSubmissionsError] = useState<
+    string | null
+  >(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
@@ -216,6 +371,9 @@ const UserDashboard: React.FC = () => {
   >(null);
   const [qrModalOpen, setQrModalOpen] = useState(false);
 
+  // Add state for the points breakdown modal
+  const [pointsModalOpen, setPointsModalOpen] = useState(false);
+
   // Add state for the confirmation modal
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [conferenceToEnd, setConferenceToEnd] = useState<string | null>(null);
@@ -229,6 +387,45 @@ const UserDashboard: React.FC = () => {
     document.body.scrollTop = 0; // For Safari
     document.documentElement.scrollTop = 0; // For Chrome, Firefox, IE and Opera
   }, []);
+
+  // Fetch user's quiz submissions
+  useEffect(() => {
+    const fetchQuizSubmissions = async () => {
+      if (!currentUser) {
+        setQuizSubmissionsLoading(false);
+        return;
+      }
+
+      try {
+        setQuizSubmissionsLoading(true);
+        const submissions = await getUserQuizSubmissions(currentUser.uid);
+
+        // Fetch quiz details for each submission
+        const submissionsWithQuizzes = await Promise.all(
+          submissions.map(async (submission) => {
+            try {
+              const quiz = await getQuiz(submission.quizId);
+              return { ...submission, quiz: quiz || undefined };
+            } catch (error) {
+              console.error(`Error fetching quiz ${submission.quizId}:`, error);
+              return { ...submission, quiz: undefined };
+            }
+          })
+        );
+
+        setQuizSubmissions(submissionsWithQuizzes);
+      } catch (error) {
+        console.error("Error fetching quiz submissions:", error);
+        setQuizSubmissionsError(
+          "Failed to load your quiz submissions. Please try again later."
+        );
+      } finally {
+        setQuizSubmissionsLoading(false);
+      }
+    };
+
+    fetchQuizSubmissions();
+  }, [currentUser]);
 
   // Fetch user's registrations
   useEffect(() => {
@@ -273,31 +470,6 @@ const UserDashboard: React.FC = () => {
     fetchRegistrations();
   }, [currentUser]);
 
-  // Fetch user's created conferences
-  useEffect(() => {
-    const fetchOrganizedConferences = async () => {
-      if (!currentUser) {
-        setOrganizerLoading(false);
-        return;
-      }
-
-      try {
-        setOrganizerLoading(true);
-        const conferences = await getUserOrganizedConferences(currentUser.uid);
-        setOrganizedConferences(conferences);
-      } catch (error) {
-        console.error("Error fetching organized conferences:", error);
-        setOrganizerError(
-          "Failed to load your created conferences. Please try again later."
-        );
-      } finally {
-        setOrganizerLoading(false);
-      }
-    };
-
-    fetchOrganizedConferences();
-  }, [currentUser]);
-
   // Fetch user's certificates
   useEffect(() => {
     const fetchCertificates = async () => {
@@ -321,6 +493,31 @@ const UserDashboard: React.FC = () => {
     };
 
     fetchCertificates();
+  }, [currentUser]);
+
+  // Fetch conferences organized by the user
+  useEffect(() => {
+    const fetchOrganizedConferences = async () => {
+      if (!currentUser) {
+        setOrganizerLoading(false);
+        return;
+      }
+
+      try {
+        setOrganizerLoading(true);
+        const conferences = await getUserOrganizedConferences(currentUser.uid);
+        setOrganizedConferences(conferences);
+      } catch (error) {
+        console.error("Error fetching organized conferences:", error);
+        setOrganizerError(
+          "Failed to load your created conferences. Please try again later."
+        );
+      } finally {
+        setOrganizerLoading(false);
+      }
+    };
+
+    fetchOrganizedConferences();
   }, [currentUser]);
 
   // const handleSignOut = async () => {
@@ -538,6 +735,12 @@ const UserDashboard: React.FC = () => {
     setQrModalOpen(true);
   };
 
+  // Calculate total points
+  const totalQuizPoints = quizSubmissions.reduce(
+    (total, submission) => total + submission.score,
+    0
+  );
+
   // If not logged in, redirect to login
   if (!currentUser && !loading) {
     return (
@@ -595,6 +798,14 @@ const UserDashboard: React.FC = () => {
         conference={selectedRegistration?.conference}
       />
 
+      {/* Points Breakdown Modal */}
+      <PointsBreakdownModal
+        isOpen={pointsModalOpen}
+        onClose={() => setPointsModalOpen(false)}
+        quizSubmissions={quizSubmissions}
+        totalPoints={totalQuizPoints}
+      />
+
       {/* Confirmation Modal for ending a livestream */}
       <ConfirmModal
         isOpen={confirmModalOpen}
@@ -626,16 +837,38 @@ const UserDashboard: React.FC = () => {
           <div className="bg-gradient-to-r from-teal-500 to-teal-700 rounded-xl p-6 md:p-8 mb-8 text-white relative overflow-hidden shadow-lg">
             <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full transform translate-x-1/3 -translate-y-1/3"></div>
             <div className="relative z-10">
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">
-                Welcome, {currentUser?.displayName || "User"}!
-              </h1>
-              <p className="opacity-90 mb-4">
-                Manage your conferences and registrations
-              </p>
+              <div className="flex flex-col sm:flex-row justify-between items-start mb-4">
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold mb-2">
+                    Welcome, {currentUser?.displayName || "User"}!
+                  </h1>
+                  <p className="opacity-90 mb-4">
+                    Manage your conferences and registrations
+                  </p>
+                </div>
+
+                {/* Points Card */}
+                <button
+                  onClick={() => setPointsModalOpen(true)}
+                  className="bg-white rounded-lg shadow-md p-3 text-charcoal mt-4 sm:mt-0 flex items-center space-x-3 w-full sm:w-auto hover:bg-gray-50 transition-colors"
+                >
+                  <div className="bg-yellow-100 p-2 rounded-full">
+                    <FaMedal className="text-yellow-500 text-xl" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-lg">{totalQuizPoints}</p>
+                    <p className="text-sm text-gray-600">Quiz Points</p>
+                  </div>
+                  <div className="text-xs bg-mint text-white px-2 py-1 rounded-full">
+                    Details
+                  </div>
+                </button>
+              </div>
+
               <div className="flex flex-wrap gap-3">
                 <Link
                   to="/conferences"
-                  className="bg-white bg-opacity-20 hover:bg-opacity-30 transition-colors rounded-full px-4 py-2 text-sm font-medium text-teal-700"
+                  className="bg-white bg-opacity-20 hover:bg-opacity-30 transition-colors rounded-full px-4 py-2 text-sm font-medium text-teal-900"
                 >
                   Browse Conferences
                 </Link>

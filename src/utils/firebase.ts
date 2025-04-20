@@ -1086,3 +1086,296 @@ export const getUserCertificates = async (
     return [];
   }
 };
+
+// Quiz interfaces
+export interface QuizQuestion {
+  id: string;
+  text: string;
+  options: string[];
+  correctOptionIndex: number;
+  points: number;
+}
+
+export interface Quiz {
+  id: string;
+  conferenceId: string;
+  title: string;
+  description: string;
+  creatorId: string;
+  creatorName: string;
+  questions: QuizQuestion[];
+  durationMinutes: number;
+  isActive: boolean;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface QuizSubmission {
+  id: string;
+  quizId: string;
+  userId: string;
+  userName: string;
+  conferenceId: string;
+  answers: number[];
+  score: number;
+  maxPossibleScore: number;
+  completedAt: any;
+}
+
+// Create a new quiz for a conference
+export const createQuiz = async (
+  conferenceId: string,
+  creatorId: string,
+  creatorName: string,
+  quizData: Omit<
+    Quiz,
+    | "id"
+    | "conferenceId"
+    | "creatorId"
+    | "creatorName"
+    | "createdAt"
+    | "updatedAt"
+  >
+): Promise<string> => {
+  try {
+    // Validate conference exists
+    const conference = await getConference(conferenceId);
+    if (!conference) {
+      throw new Error("Conference not found");
+    }
+
+    // Create question IDs for new questions
+    const questions = quizData.questions.map((q) => ({
+      ...q,
+      id: crypto.randomUUID(),
+    }));
+
+    const quizzesRef = collection(db, "quizzes");
+    const newQuiz = {
+      conferenceId,
+      creatorId,
+      creatorName,
+      ...quizData,
+      questions,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    const docRef = await addDoc(quizzesRef, newQuiz);
+    console.log("Quiz created successfully with ID:", docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error("Error creating quiz:", error);
+    throw error;
+  }
+};
+
+// Update an existing quiz
+export const updateQuiz = async (
+  quizId: string,
+  data: Partial<Omit<Quiz, "id" | "conferenceId" | "creatorId" | "createdAt">>
+): Promise<void> => {
+  try {
+    const quizRef = doc(db, "quizzes", quizId);
+    await updateDoc(quizRef, {
+      ...data,
+      updatedAt: serverTimestamp(),
+    });
+    console.log("Quiz updated successfully");
+  } catch (error) {
+    console.error("Error updating quiz:", error);
+    throw error;
+  }
+};
+
+// Get a quiz by ID
+export const getQuiz = async (quizId: string): Promise<Quiz | null> => {
+  try {
+    const quizRef = doc(db, "quizzes", quizId);
+    const quizSnap = await getDoc(quizRef);
+
+    if (quizSnap.exists()) {
+      return {
+        id: quizId,
+        ...quizSnap.data(),
+      } as Quiz;
+    } else {
+      console.log("No quiz found with ID:", quizId);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error getting quiz:", error);
+    return null;
+  }
+};
+
+// Get all quizzes for a conference
+export const getConferenceQuizzes = async (
+  conferenceId: string
+): Promise<Quiz[]> => {
+  try {
+    const quizzesRef = collection(db, "quizzes");
+    const q = query(quizzesRef, where("conferenceId", "==", conferenceId));
+    const querySnapshot = await getDocs(q);
+
+    const quizzes: Quiz[] = [];
+    querySnapshot.forEach((doc) => {
+      quizzes.push({
+        id: doc.id,
+        ...doc.data(),
+      } as Quiz);
+    });
+
+    return quizzes;
+  } catch (error) {
+    console.error("Error getting conference quizzes:", error);
+    return [];
+  }
+};
+
+// Submit a quiz attempt
+export const submitQuizAttempt = async (
+  quizId: string,
+  userId: string,
+  userName: string,
+  answers: number[]
+): Promise<QuizSubmission | null> => {
+  try {
+    // Get quiz to verify answers and calculate score
+    const quiz = await getQuiz(quizId);
+    if (!quiz) {
+      throw new Error("Quiz not found");
+    }
+
+    // Check if user already submitted this quiz
+    const existingSubmission = await getUserQuizSubmission(userId, quizId);
+    if (existingSubmission) {
+      throw new Error("You have already submitted this quiz");
+    }
+
+    // Calculate score
+    let score = 0;
+    const maxPossibleScore = quiz.questions.reduce(
+      (total, q) => total + q.points,
+      0
+    );
+
+    // Make sure answers array matches questions length
+    const validatedAnswers = answers.slice(0, quiz.questions.length);
+    while (validatedAnswers.length < quiz.questions.length) {
+      validatedAnswers.push(-1); // -1 indicates unanswered
+    }
+
+    // Score the quiz
+    quiz.questions.forEach((question, index) => {
+      if (validatedAnswers[index] === question.correctOptionIndex) {
+        score += question.points;
+      }
+    });
+
+    // Create submission
+    const submissionData: Omit<QuizSubmission, "id"> = {
+      quizId,
+      userId,
+      userName,
+      conferenceId: quiz.conferenceId,
+      answers: validatedAnswers,
+      score,
+      maxPossibleScore,
+      completedAt: serverTimestamp(),
+    };
+
+    // Save to database
+    const submissionsRef = collection(db, "quizSubmissions");
+    const docRef = await addDoc(submissionsRef, submissionData);
+
+    return {
+      id: docRef.id,
+      ...submissionData,
+      completedAt: Timestamp.now(), // Use current timestamp for immediate UI display
+    };
+  } catch (error) {
+    console.error("Error submitting quiz:", error);
+    throw error;
+  }
+};
+
+// Get a specific user's submission for a quiz
+export const getUserQuizSubmission = async (
+  userId: string,
+  quizId: string
+): Promise<QuizSubmission | null> => {
+  try {
+    const submissionsRef = collection(db, "quizSubmissions");
+    const q = query(
+      submissionsRef,
+      where("userId", "==", userId),
+      where("quizId", "==", quizId)
+    );
+
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    const doc = querySnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as QuizSubmission;
+  } catch (error) {
+    console.error("Error getting user quiz submission:", error);
+    return null;
+  }
+};
+
+// Get all submissions for a quiz
+export const getQuizSubmissions = async (
+  quizId: string
+): Promise<QuizSubmission[]> => {
+  try {
+    const submissionsRef = collection(db, "quizSubmissions");
+    const q = query(submissionsRef, where("quizId", "==", quizId));
+    const querySnapshot = await getDocs(q);
+
+    const submissions: QuizSubmission[] = [];
+    querySnapshot.forEach((doc) => {
+      submissions.push({
+        id: doc.id,
+        ...doc.data(),
+      } as QuizSubmission);
+    });
+
+    // Sort by score (highest first)
+    submissions.sort((a, b) => b.score - a.score);
+
+    return submissions;
+  } catch (error) {
+    console.error("Error getting quiz submissions:", error);
+    return [];
+  }
+};
+
+// Get all quiz submissions for a user
+export const getUserQuizSubmissions = async (
+  userId: string
+): Promise<QuizSubmission[]> => {
+  try {
+    const submissionsRef = collection(db, "quizSubmissions");
+    const q = query(submissionsRef, where("userId", "==", userId));
+    const querySnapshot = await getDocs(q);
+
+    const submissions: QuizSubmission[] = [];
+    querySnapshot.forEach((doc) => {
+      submissions.push({
+        id: doc.id,
+        ...doc.data(),
+      } as QuizSubmission);
+    });
+
+    return submissions;
+  } catch (error) {
+    console.error("Error getting user quiz submissions:", error);
+    return [];
+  }
+};

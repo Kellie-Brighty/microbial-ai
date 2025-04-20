@@ -18,6 +18,7 @@ import CommunityPage from "./pages/community/CommunityPage";
 import { CommunityProvider } from "./context/CommunityContext";
 import { CommunityThemeProvider } from "./context/CommunityThemeContext";
 import ViewCertificatePage from "./pages/certificates/ViewCertificatePage";
+import ConferenceQuizPage from "./pages/conferences/ConferenceQuizPage";
 
 // Initialize debugging
 initDebugging();
@@ -121,6 +122,10 @@ try {
                 <Route
                   path="/conferences/:id/registrants"
                   element={<ConferenceRegistrantsPage />}
+                />
+                <Route
+                  path="/conferences/:conferenceId/quizzes"
+                  element={<ConferenceQuizPage />}
                 />
                 <Route path="/dashboard" element={<UserDashboard />} />
 
