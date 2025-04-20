@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
-import { FiHeart, FiMessageSquare, FiSend } from "react-icons/fi";
+import { FiHeart, FiMessageSquare, FiSend, FiFlag } from "react-icons/fi";
 import { useCommunity } from "../../context/CommunityContext";
 import { CommunityPost } from "../../utils/communityModel";
 // import CommentItem from "./CommentItem";
@@ -14,12 +14,16 @@ const Post: React.FC<PostProps> = ({ post }) => {
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showReportConfirm, setShowReportConfirm] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
   const {
     anonymousId,
     toggleLikePost,
     commentOnPost,
     loadCommentsForPost,
     commentsByPostId,
+    reportPostContent,
   } = useCommunity();
   const { isDarkMode } = useCommunityTheme();
 
@@ -60,6 +64,34 @@ const Post: React.FC<PostProps> = ({ post }) => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleReport = async () => {
+    setShowReportConfirm(true);
+  };
+
+  const confirmReport = async () => {
+    if (!post.id) return;
+
+    try {
+      setIsReporting(true);
+      await reportPostContent(post.id);
+      setReportSuccess(true);
+
+      // Hide report confirmation after 3 seconds
+      setTimeout(() => {
+        setShowReportConfirm(false);
+        setReportSuccess(false);
+      }, 3000);
+    } catch (error) {
+      console.error("Error reporting post:", error);
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
+  const cancelReport = () => {
+    setShowReportConfirm(false);
   };
 
   return (
@@ -134,14 +166,81 @@ const Post: React.FC<PostProps> = ({ post }) => {
 
           <button
             onClick={handleToggleComments}
-            className={`flex items-center ${
+            className={`flex items-center mr-6 ${
               isDarkMode ? "text-gray-400" : "text-gray-500"
             }`}
           >
             <FiMessageSquare className="mr-1" size={18} />
             <span>{post.commentCount}</span>
           </button>
+
+          <button
+            onClick={handleReport}
+            className={`flex items-center ml-auto px-2 py-1 rounded-md ${
+              isDarkMode
+                ? "bg-gray-700 hover:bg-gray-600 text-red-400 hover:text-red-300"
+                : "bg-gray-100 hover:bg-gray-200 text-red-500 hover:text-red-600"
+            }`}
+            aria-label="Report post"
+            title="Report inappropriate content"
+          >
+            <FiFlag size={16} className="mr-1" />
+            <span className="text-sm">Report</span>
+          </button>
         </div>
+
+        {/* Report confirmation popup */}
+        {showReportConfirm && (
+          <div
+            className={`mt-3 p-3 rounded-lg ${
+              isDarkMode ? "bg-gray-700" : "bg-gray-100"
+            }`}
+          >
+            {reportSuccess ? (
+              <p
+                className={`text-sm ${
+                  isDarkMode ? "text-green-400" : "text-green-600"
+                }`}
+              >
+                Thank you for your report. We will review this content.
+              </p>
+            ) : (
+              <>
+                <p
+                  className={`text-sm mb-2 ${
+                    isDarkMode ? "text-gray-300" : "text-gray-700"
+                  }`}
+                >
+                  Are you sure you want to report this post as inappropriate?
+                </p>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={confirmReport}
+                    disabled={isReporting}
+                    className={`px-3 py-1 rounded text-xs ${
+                      isDarkMode
+                        ? "bg-red-600 hover:bg-red-700 text-white"
+                        : "bg-red-500 hover:bg-red-600 text-white"
+                    } disabled:opacity-50`}
+                  >
+                    {isReporting ? "Reporting..." : "Report"}
+                  </button>
+                  <button
+                    onClick={cancelReport}
+                    disabled={isReporting}
+                    className={`px-3 py-1 rounded text-xs ${
+                      isDarkMode
+                        ? "bg-gray-600 hover:bg-gray-500 text-white"
+                        : "bg-gray-300 hover:bg-gray-400 text-gray-800"
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {showComments && (

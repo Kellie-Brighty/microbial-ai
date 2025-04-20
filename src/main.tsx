@@ -19,6 +19,8 @@ import { CommunityProvider } from "./context/CommunityContext";
 import { CommunityThemeProvider } from "./context/CommunityThemeContext";
 import ViewCertificatePage from "./pages/certificates/ViewCertificatePage";
 import ConferenceQuizPage from "./pages/conferences/ConferenceQuizPage";
+import ModerationPage from "./pages/admin/ModerationPage";
+import AdminRoutes from "./routes/AdminRoutes";
 
 // Initialize debugging
 initDebugging();
@@ -157,6 +159,12 @@ try {
                   path="/certificates/view/:id"
                   element={<ViewCertificatePage />}
                 />
+
+                {/* Admin Routes */}
+                <Route path="/admin/moderation" element={<ModerationPage />} />
+
+                {/* Use the AdminRoutes component for better route organization */}
+                <Route path="/admin/*" element={<AdminRoutes />} />
 
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

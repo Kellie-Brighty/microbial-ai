@@ -7,6 +7,8 @@ import {
   FaPaperPlane,
   FaRegHeart,
   FaHeart,
+  FaFlag,
+  FaCheck,
 } from "react-icons/fa";
 
 import { MdClose } from "react-icons/md";
@@ -27,6 +29,9 @@ import {
   serverTimestamp,
   onSnapshot,
   where,
+  arrayUnion,
+  increment,
+  deleteDoc,
 } from "firebase/firestore";
 
 import { uploadImageToImgbb } from "../../utils/imageUpload";
@@ -49,6 +54,8 @@ interface Post {
   tags: string[];
   likedBy: string[];
   savedBy: string[];
+  reports?: string[];
+  reportCount?: number;
 }
 
 // Interface for comments
@@ -117,8 +124,14 @@ const CommunitiesPage: React.FC = () => {
   // Add new state for the engagement modal
   const [engagementModalOpen, setEngagementModalOpen] = useState(false);
   const [_engagementAction, setEngagementAction] = useState<
-    "like" | "comment" | "post"
+    "like" | "comment" | "post" | "report"
   >("post");
+
+  // Add state for report modal
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportingPostId, setReportingPostId] = useState<string | null>(null);
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   const { isDarkMode } = useCommunityTheme();
 
@@ -153,6 +166,8 @@ const CommunitiesPage: React.FC = () => {
               tags: data.tags || [],
               likedBy: data.likedBy || [],
               savedBy: data.savedBy || [],
+              reports: data.reports || [],
+              reportCount: data.reportCount || 0,
             });
           });
           setPosts(postsData);
@@ -227,11 +242,77 @@ const CommunitiesPage: React.FC = () => {
   };
 
   // Open engagement modal when unauthenticated user tries to interact
-  const handleUnauthenticatedAction = (action: "like" | "comment" | "post") => {
+  const handleUnauthenticatedAction = (
+    action: "like" | "comment" | "post" | "report"
+  ) => {
     if (!currentUser) {
       setEngagementAction(action);
       setEngagementModalOpen(true);
     }
+  };
+
+  // Handle report post
+  const handleReportPost = (postId: string) => {
+    if (!currentUser) {
+      handleUnauthenticatedAction("report");
+      return;
+    }
+
+    setReportingPostId(postId);
+    setReportModalOpen(true);
+    setReportSuccess(false);
+  };
+
+  // Confirm report submission
+  const confirmReport = async () => {
+    if (!reportingPostId || !currentUser) return;
+
+    try {
+      setIsReporting(true);
+      const postRef = doc(db, "anonymousPosts", reportingPostId);
+      const post = posts.find((p) => p.id === reportingPostId);
+
+      if (!post) return;
+
+      // Check if user already reported this post
+      if (post.reports?.includes(currentUser.uid)) {
+        showNotification("error", "You've already reported this post");
+        setIsReporting(false);
+        return;
+      }
+
+      await updateDoc(postRef, {
+        reports: arrayUnion(currentUser.uid),
+        reportCount: increment(1),
+      });
+
+      setReportSuccess(true);
+      showNotification("success", "Post reported successfully");
+
+      // Auto-delete post if report count reaches 50
+      const updatedPost = posts.find((p) => p.id === reportingPostId);
+      if (updatedPost && (updatedPost.reportCount || 0) >= 49) {
+        await deleteDoc(postRef);
+      }
+
+      // Hide report modal after 2 seconds
+      setTimeout(() => {
+        setReportModalOpen(false);
+        setReportingPostId(null);
+        setReportSuccess(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Error reporting post:", error);
+      showNotification("error", "Failed to report post");
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
+  // Cancel report
+  const cancelReport = () => {
+    setReportModalOpen(false);
+    setReportingPostId(null);
   };
 
   // Create a new post with Firebase
@@ -275,6 +356,8 @@ const CommunitiesPage: React.FC = () => {
         tags,
         likedBy: [],
         savedBy: [],
+        reports: [],
+        reportCount: 0,
         userId: currentUser.uid, // Store the user ID privately (not displayed)
       });
 
@@ -1260,6 +1343,24 @@ const CommunitiesPage: React.FC = () => {
                               <FaRegComment className="mr-1" /> {post.comments}
                             </button>
                           </div>
+
+                          {/* Report Button */}
+                          <button
+                            className={`flex items-center px-2 py-1 rounded-md transition-colors ${
+                              isDarkMode
+                                ? "bg-gray-700 hover:bg-gray-600 text-red-400 hover:text-red-300"
+                                : "bg-gray-100 hover:bg-gray-200 text-red-500 hover:text-red-600"
+                            } ${!currentUser ? "opacity-70" : ""}`}
+                            onClick={() =>
+                              currentUser
+                                ? handleReportPost(post.id)
+                                : handleUnauthenticatedAction("report")
+                            }
+                            title="Report inappropriate content"
+                          >
+                            <FaFlag className="mr-1" size={14} />
+                            <span className="text-sm">Report</span>
+                          </button>
                         </div>
 
                         {/* Comments Section */}
@@ -1814,6 +1915,91 @@ const CommunitiesPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Report Confirmation Modal */}
+      {reportModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div
+            className={`${
+              isDarkMode ? "bg-gray-800" : "bg-white"
+            } rounded-xl shadow-xl p-6 max-w-md w-full`}
+          >
+            <h3
+              className={`text-xl font-bold mb-4 ${
+                isDarkMode ? "text-white" : "text-gray-800"
+              }`}
+            >
+              {reportSuccess ? "Report Submitted" : "Report Post"}
+            </h3>
+
+            {reportSuccess ? (
+              <div className="text-center py-4">
+                <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                  <FaCheck className="text-green-500 text-2xl" />
+                </div>
+                <p
+                  className={`${
+                    isDarkMode ? "text-gray-300" : "text-gray-700"
+                  } mb-4`}
+                >
+                  Thank you for your report. We will review this content and
+                  take appropriate action.
+                </p>
+              </div>
+            ) : (
+              <>
+                <p
+                  className={`${
+                    isDarkMode ? "text-gray-300" : "text-gray-700"
+                  } mb-4`}
+                >
+                  Are you sure you want to report this post for inappropriate
+                  content?
+                </p>
+                <p
+                  className={`${
+                    isDarkMode ? "text-gray-400" : "text-gray-500"
+                  } mb-6 text-sm`}
+                >
+                  Reported content that violates our community guidelines will
+                  be removed. Posts with 50+ reports will be automatically
+                  removed.
+                </p>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={cancelReport}
+                    className={`px-4 py-2 rounded ${
+                      isDarkMode
+                        ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                    disabled={isReporting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmReport}
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 flex items-center"
+                    disabled={isReporting}
+                  >
+                    {isReporting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Reporting...
+                      </>
+                    ) : (
+                      <>
+                        <FaFlag className="mr-2" />
+                        Report
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

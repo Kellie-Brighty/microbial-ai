@@ -22,6 +22,9 @@ import {
   addReply,
   getReplies,
   likeReply,
+  reportPost,
+  getReportedPosts,
+  deletePost,
 } from "../utils/communityModel";
 
 interface CommunityContextType {
@@ -42,6 +45,11 @@ interface CommunityContextType {
   replyToComment: (commentId: string, content: string) => Promise<string>;
   loadRepliesForComment: (commentId: string) => Promise<CommentReply[]>;
   toggleLikeReply: (replyId: string) => Promise<void>;
+  reportPostContent: (postId: string) => Promise<void>;
+  getReportedPostsForAdmin: (
+    minReportCount?: number
+  ) => Promise<CommunityPost[]>;
+  deletePostAsAdmin: (postId: string) => Promise<void>;
 }
 
 const CommunityContext = createContext<CommunityContextType | null>(null);
@@ -387,6 +395,45 @@ export const CommunityProvider: React.FC<{
     }
   };
 
+  const reportPostContent = async (postId: string): Promise<void> => {
+    if (!anonymousId) {
+      throw new Error("User must be a member to report posts");
+    }
+
+    try {
+      await reportPost(postId, anonymousId);
+
+      // Update local posts state - remove post if it was auto-deleted
+      setPosts((prevPosts) => prevPosts.filter((post) => post.id !== postId));
+    } catch (error) {
+      console.error("Error reporting post:", error);
+      throw error;
+    }
+  };
+
+  const getReportedPostsForAdmin = async (
+    minReportCount = 1
+  ): Promise<CommunityPost[]> => {
+    try {
+      return await getReportedPosts(minReportCount);
+    } catch (error) {
+      console.error("Error getting reported posts:", error);
+      throw error;
+    }
+  };
+
+  const deletePostAsAdmin = async (postId: string): Promise<void> => {
+    try {
+      await deletePost(postId);
+
+      // Update local posts state
+      setPosts((prevPosts) => prevPosts.filter((post) => post.id !== postId));
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      throw error;
+    }
+  };
+
   const value = {
     anonymousId,
     isLoading,
@@ -405,6 +452,9 @@ export const CommunityProvider: React.FC<{
     replyToComment,
     loadRepliesForComment,
     toggleLikeReply,
+    reportPostContent,
+    getReportedPostsForAdmin,
+    deletePostAsAdmin,
   };
 
   return (

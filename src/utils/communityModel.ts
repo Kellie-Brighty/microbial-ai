@@ -38,6 +38,8 @@ export interface CommunityPost {
   likes: number;
   likedBy: string[];
   commentCount: number;
+  reports: string[];
+  reportCount: number;
 }
 
 export interface PostComment {
@@ -179,6 +181,8 @@ export const createPost = async (
       likes: 0,
       likedBy: [],
       commentCount: 0,
+      reports: [],
+      reportCount: 0,
     };
 
     const postRef = await addDoc(collection(db, "communityPosts"), postData);
@@ -444,6 +448,86 @@ export const likeReply = async (
     }
   } catch (error) {
     console.error("Error liking reply:", error);
+    throw error;
+  }
+};
+
+// Report a post
+export const reportPost = async (
+  postId: string,
+  anonymousId: string
+): Promise<void> => {
+  try {
+    const postRef = doc(db, "communityPosts", postId);
+    const postSnap = await getDoc(postRef);
+
+    if (!postSnap.exists()) {
+      throw new Error("Post not found");
+    }
+
+    const postData = postSnap.data();
+    if (postData.reports && postData.reports.includes(anonymousId)) {
+      // User already reported this post
+      return;
+    }
+
+    // Update the post with the new report
+    await updateDoc(postRef, {
+      reports: arrayUnion(anonymousId),
+      reportCount: increment(1),
+    });
+
+    // Check if post should be auto-deleted (50+ reports)
+    const updatedPostSnap = await getDoc(postRef);
+    if (updatedPostSnap.exists()) {
+      const updatedData = updatedPostSnap.data();
+      if (updatedData.reportCount >= 50) {
+        await deleteDoc(postRef);
+      }
+    }
+  } catch (error) {
+    console.error("Error reporting post:", error);
+    throw error;
+  }
+};
+
+// Get reported posts for admin review
+export const getReportedPosts = async (
+  minReportCount = 1,
+  limitCount = 50
+): Promise<CommunityPost[]> => {
+  try {
+    const postsQuery = query(
+      collection(db, "communityPosts"),
+      where("reportCount", ">=", minReportCount),
+      orderBy("reportCount", "desc"),
+      limit(limitCount)
+    );
+
+    const postsSnapshot = await getDocs(postsQuery);
+    const posts: CommunityPost[] = [];
+
+    postsSnapshot.forEach((doc) => {
+      posts.push({
+        id: doc.id,
+        ...doc.data(),
+      } as CommunityPost);
+    });
+
+    return posts;
+  } catch (error) {
+    console.error("Error getting reported posts:", error);
+    throw error;
+  }
+};
+
+// Delete a post (for admin use)
+export const deletePost = async (postId: string): Promise<void> => {
+  try {
+    const postRef = doc(db, "communityPosts", postId);
+    await deleteDoc(postRef);
+  } catch (error) {
+    console.error("Error deleting post:", error);
     throw error;
   }
 };
