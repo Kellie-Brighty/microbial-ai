@@ -15,6 +15,7 @@ import {
   Timestamp,
   serverTimestamp,
   addDoc,
+  limit,
 } from "firebase/firestore";
 import {
   getAuth,
@@ -223,6 +224,8 @@ export interface ConferenceRegistration {
   roomAssignment?: string;
   attendanceConfirmed: boolean;
   foodDistributed: boolean;
+  certificateIssued?: boolean;
+  certificateId?: string;
 }
 
 // Helper function to convert date objects to Firestore timestamps
@@ -764,6 +767,48 @@ export const getConferenceRegistrations = async (
   }
 };
 
+// Update attendance confirmation status
+export const updateRegistrationAttendance = async (
+  registrationId: string,
+  isConfirmed: boolean
+): Promise<boolean> => {
+  try {
+    const registrationRef = doc(db, "conferenceRegistrations", registrationId);
+    await updateDoc(registrationRef, {
+      attendanceConfirmed: isConfirmed,
+      updatedAt: serverTimestamp(),
+    });
+    console.log(
+      `Updated attendance for registration ${registrationId} to ${isConfirmed}`
+    );
+    return true;
+  } catch (error) {
+    console.error("Error updating registration attendance:", error);
+    return false;
+  }
+};
+
+// Update food distribution status
+export const updateRegistrationFoodStatus = async (
+  registrationId: string,
+  isFoodGiven: boolean
+): Promise<boolean> => {
+  try {
+    const registrationRef = doc(db, "conferenceRegistrations", registrationId);
+    await updateDoc(registrationRef, {
+      foodDistributed: isFoodGiven,
+      updatedAt: serverTimestamp(),
+    });
+    console.log(
+      `Updated food status for registration ${registrationId} to ${isFoodGiven}`
+    );
+    return true;
+  } catch (error) {
+    console.error("Error updating registration food status:", error);
+    return false;
+  }
+};
+
 // Get all conferences organized by a specific user
 export const getUserOrganizedConferences = async (
   userId: string
@@ -792,6 +837,249 @@ export const getUserOrganizedConferences = async (
     return conferences;
   } catch (error) {
     console.error("Error getting user organized conferences:", error);
+    return [];
+  }
+};
+
+// Certificate interfaces
+export interface Certificate {
+  id: string;
+  conferenceId: string;
+  registrationId: string;
+  userId: string;
+  recipientName: string;
+  conferenceName: string;
+  conferenceDate: string;
+  issueDate: any; // Timestamp
+  certificateUrl?: string;
+  issuedBy: string;
+  issuedById: string;
+}
+
+// Issue a certificate for a conference registration
+export const issueCertificate = async (
+  conferenceId: string,
+  registrationId: string,
+  userData: { userId: string; recipientName: string },
+  issuerData: { issuedBy: string; issuedById: string }
+): Promise<Certificate | null> => {
+  try {
+    // Get conference details
+    const conference = await getConference(conferenceId);
+    if (!conference) {
+      throw new Error("Conference not found");
+    }
+
+    // Check if certificate already exists
+    const existingCertificate = await getCertificateByRegistration(
+      registrationId
+    );
+    if (existingCertificate) {
+      return existingCertificate; // Return existing certificate instead of creating a new one
+    }
+
+    // Create certificate data
+    const conferenceDate = conference.startTime
+      ? new Date(conference.startTime.seconds * 1000).toLocaleDateString(
+          "en-US",
+          {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }
+        )
+      : "Unknown Date";
+
+    const certificateData: Omit<Certificate, "id"> = {
+      conferenceId,
+      registrationId,
+      userId: userData.userId,
+      recipientName: userData.recipientName,
+      conferenceName: conference.title,
+      conferenceDate,
+      issueDate: serverTimestamp(),
+      issuedBy: issuerData.issuedBy,
+      issuedById: issuerData.issuedById,
+    };
+
+    // Add to certificates collection
+    const certificatesRef = collection(db, "certificates");
+    const docRef = await addDoc(certificatesRef, certificateData);
+
+    // Update registration to mark certificate as issued
+    const registrationRef = doc(db, "conferenceRegistrations", registrationId);
+    await updateDoc(registrationRef, {
+      certificateIssued: true,
+      certificateId: docRef.id,
+      updatedAt: serverTimestamp(),
+    });
+
+    // Return the certificate with its ID
+    return {
+      id: docRef.id,
+      ...certificateData,
+      issueDate: Timestamp.now(), // Use current timestamp for immediate UI display
+    };
+  } catch (error) {
+    console.error("Error issuing certificate:", error);
+    return null;
+  }
+};
+
+// Batch issue certificates to multiple registrations
+export const batchIssueCertificates = async (
+  conferenceId: string,
+  registrationIds: string[],
+  issuerData: { issuedBy: string; issuedById: string }
+): Promise<{
+  success: number;
+  failed: number;
+  certificates: Certificate[];
+}> => {
+  const results = {
+    success: 0,
+    failed: 0,
+    certificates: [] as Certificate[],
+  };
+
+  // Process registrations in smaller batches to avoid hitting Firestore limits
+  const batchSize = 20;
+  for (let i = 0; i < registrationIds.length; i += batchSize) {
+    const batch = registrationIds.slice(i, i + batchSize);
+
+    // Get registration details for this batch
+    const registrationsData = await Promise.all(
+      batch.map(async (regId) => {
+        try {
+          const regRef = doc(db, "conferenceRegistrations", regId);
+          const regSnap = await getDoc(regRef);
+          if (regSnap.exists() && regSnap.data().attendanceConfirmed) {
+            return {
+              id: regSnap.id,
+              ...(regSnap.data() as ConferenceRegistration),
+            };
+          }
+          return null;
+        } catch (error) {
+          console.error(`Error fetching registration ${regId}:`, error);
+          return null;
+        }
+      })
+    );
+
+    // Issue certificates for valid registrations
+    const certificatePromises = registrationsData
+      .filter(
+        (reg): reg is ConferenceRegistration & { id: string } =>
+          reg !== null && !reg.certificateIssued
+      )
+      .map(async (reg) => {
+        try {
+          const cert = await issueCertificate(
+            conferenceId,
+            reg.id,
+            {
+              userId: reg.userId,
+              recipientName: reg.fullName,
+            },
+            issuerData
+          );
+
+          if (cert) {
+            results.success++;
+            results.certificates.push(cert);
+          } else {
+            results.failed++;
+          }
+          return cert;
+        } catch (error) {
+          console.error(`Error issuing certificate for ${reg.id}:`, error);
+          results.failed++;
+          return null;
+        }
+      });
+
+    await Promise.all(certificatePromises);
+  }
+
+  return results;
+};
+
+// Get a certificate by registration ID
+export const getCertificateByRegistration = async (
+  registrationId: string
+): Promise<Certificate | null> => {
+  try {
+    const certificatesRef = collection(db, "certificates");
+    const q = query(
+      certificatesRef,
+      where("registrationId", "==", registrationId),
+      limit(1)
+    );
+
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    const doc = querySnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as Certificate;
+  } catch (error) {
+    console.error("Error getting certificate:", error);
+    return null;
+  }
+};
+
+// Get all certificates for a conference
+export const getConferenceCertificates = async (
+  conferenceId: string
+): Promise<Certificate[]> => {
+  try {
+    const certificatesRef = collection(db, "certificates");
+    const q = query(certificatesRef, where("conferenceId", "==", conferenceId));
+
+    const querySnapshot = await getDocs(q);
+
+    const certificates: Certificate[] = [];
+    querySnapshot.forEach((doc) => {
+      certificates.push({
+        id: doc.id,
+        ...doc.data(),
+      } as Certificate);
+    });
+
+    return certificates;
+  } catch (error) {
+    console.error("Error getting conference certificates:", error);
+    return [];
+  }
+};
+
+// Get all certificates issued to a user
+export const getUserCertificates = async (
+  userId: string
+): Promise<Certificate[]> => {
+  try {
+    const certificatesRef = collection(db, "certificates");
+    const q = query(certificatesRef, where("userId", "==", userId));
+
+    const querySnapshot = await getDocs(q);
+
+    const certificates: Certificate[] = [];
+    querySnapshot.forEach((doc) => {
+      certificates.push({
+        id: doc.id,
+        ...doc.data(),
+      } as Certificate);
+    });
+
+    return certificates;
+  } catch (error) {
+    console.error("Error getting user certificates:", error);
     return [];
   }
 };

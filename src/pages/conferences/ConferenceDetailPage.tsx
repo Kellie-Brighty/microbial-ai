@@ -784,34 +784,42 @@ const ConferenceDetailPage: React.FC = () => {
                           />
                         </svg>
                         <span className="font-medium">
-                          You are the creator of this conference
+                          Conference Organizer Tools
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mb-4">
-                        As the organizer, you don't need to register for your
-                        own conference. You can manage conference details from
-                        your dashboard.
+                        As the organizer, you have access to special tools to
+                        manage your conference.
                       </p>
-                      <Link
-                        to="/dashboard"
-                        className="inline-flex items-center text-mint hover:text-purple transition-colors"
-                      >
-                        Go to Dashboard
-                        <svg
-                          className="w-3 h-3 ml-1"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
+                      <div className="mt-4 flex flex-col gap-3">
+                        <Link
+                          to={`/conferences/${id}/registrants`}
+                          className="bg-mint text-white text-sm px-4 py-2 rounded-md flex items-center justify-center hover:bg-purple transition-colors"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      </Link>
+                          <span className="mr-2">👥</span> View & Manage
+                          Registrants
+                        </Link>
+                        <Link
+                          to="/dashboard"
+                          className="inline-flex items-center justify-center bg-gray-100 text-gray-700 hover:bg-gray-200 px-4 py-2 rounded-md text-sm transition-colors"
+                        >
+                          Go to Dashboard
+                          <svg
+                            className="w-3 h-3 ml-1"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                        </Link>
+                      </div>
                     </div>
                   ) : !showRegistrationForm ? (
                     <>

@@ -146,7 +146,7 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
             }`}
           >
             <span className="flex items-center">
-              <MdLiveTv className="mr-1" /> My Conferences
+              <MdLiveTv className="mr-1" /> Dashboard
             </span>
           </Link>
           <Link
@@ -158,7 +158,7 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
             }`}
           >
             <span className="flex items-center">
-              <FaUsers className="mr-1" /> Community
+              <FaUsers className="mr-1" /> Whizpar
             </span>
           </Link>
           <Link
@@ -190,22 +190,10 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
               {profileDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5">
                   <Link
-                    to="/profile"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Profile
-                  </Link>
-                  <Link
                     to="/dashboard"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
-                    My Conferences
-                  </Link>
-                  <Link
-                    to="/favorites"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Saved Items
+                    Dashboard
                   </Link>
                   <button
                     onClick={openSignOutModal}
@@ -258,7 +246,7 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
               }`}
             >
               <span className="flex items-center">
-                <MdLiveTv className="mr-2" /> My Conferences
+                <MdLiveTv className="mr-2" /> Dashboard
               </span>
             </Link>
             <Link
@@ -270,7 +258,7 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
               }`}
             >
               <span className="flex items-center">
-                <FaUsers className="mr-2" /> Community
+                <FaUsers className="mr-2" /> Whizpar
               </span>
             </Link>
             <Link
@@ -290,22 +278,10 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
               {currentUser ? (
                 <>
                   <Link
-                    to="/profile"
-                    className="block rounded px-3 py-2 text-white hover:bg-teal-700"
-                  >
-                    Profile
-                  </Link>
-                  <Link
                     to="/dashboard"
                     className="block rounded px-3 py-2 text-white hover:bg-teal-700"
                   >
-                    My Conferences
-                  </Link>
-                  <Link
-                    to="/favorites"
-                    className="block rounded px-3 py-2 text-white hover:bg-teal-700"
-                  >
-                    Saved Items
+                    Dashboard
                   </Link>
                   <button
                     onClick={openSignOutModal}

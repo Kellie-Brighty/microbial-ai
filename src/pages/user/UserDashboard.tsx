@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
   getUserConferenceRegistrations,
@@ -8,6 +8,10 @@ import {
   Conference,
   getUserOrganizedConferences,
   updateConference,
+  getConferenceCertificates,
+  batchIssueCertificates,
+  getUserCertificates,
+  Certificate,
   // signOut,
   // auth,
 } from "../../utils/firebase";
@@ -24,6 +28,7 @@ import {
   FaStop,
   FaQrcode,
   FaMapMarkerAlt,
+  FaGraduationCap,
 } from "react-icons/fa";
 import { MdAddCircle } from "react-icons/md";
 import Notification from "../../components/ui/Notification";
@@ -181,17 +186,22 @@ Verified: YES`;
 
 const UserDashboard: React.FC = () => {
   const { currentUser } = useAuth();
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   const [registrations, setRegistrations] = useState<
     Array<ConferenceRegistration & { conference?: Conference }>
   >([]);
   const [organizedConferences, setOrganizedConferences] = useState<
     Conference[]
   >([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [organizerLoading, setOrganizerLoading] = useState(true);
+  const [certificatesLoading, setCertificatesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [organizerError, setOrganizerError] = useState<string | null>(null);
+  const [certificatesError, setCertificatesError] = useState<string | null>(
+    null
+  );
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
@@ -288,6 +298,31 @@ const UserDashboard: React.FC = () => {
     };
 
     fetchOrganizedConferences();
+  }, [currentUser]);
+
+  // Fetch user's certificates
+  useEffect(() => {
+    const fetchCertificates = async () => {
+      if (!currentUser) {
+        setCertificatesLoading(false);
+        return;
+      }
+
+      try {
+        setCertificatesLoading(true);
+        const userCertificates = await getUserCertificates(currentUser.uid);
+        setCertificates(userCertificates);
+      } catch (error) {
+        console.error("Error fetching certificates:", error);
+        setCertificatesError(
+          "Failed to load your certificates. Please try again later."
+        );
+      } finally {
+        setCertificatesLoading(false);
+      }
+    };
+
+    fetchCertificates();
   }, [currentUser]);
 
   // const handleSignOut = async () => {
@@ -698,9 +733,16 @@ const UserDashboard: React.FC = () => {
                             <div className="flex flex-wrap gap-2">
                               <Link
                                 to={`/conferences/${conference.id}`}
-                                className="inline-flex items-center px-3 py-1.5 bg-teal-600 text-white rounded-md text-sm hover:bg-teal-700 transition-colors"
+                                className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300 transition-colors"
                               >
                                 View Details
+                              </Link>
+                              <Link
+                                to={`/conferences/${conference.id}/registrants`}
+                                className="inline-flex items-center px-3 py-1.5 bg-mint text-white rounded-md text-sm hover:bg-purple transition-colors"
+                              >
+                                <span className="mr-1">👥</span> Manage
+                                Registrants
                               </Link>
                               <button
                                 onClick={() =>
@@ -712,7 +754,7 @@ const UserDashboard: React.FC = () => {
                                 <FaStop className="mr-1" />
                                 {actionInProgress === conference.id
                                   ? "Ending..."
-                                  : "End Live Stream"}
+                                  : "End Now"}
                               </button>
                             </div>
                           </div>
@@ -757,11 +799,11 @@ const UserDashboard: React.FC = () => {
                                 View Details
                               </Link>
                               <Link
-                                to={`/conferences/${conference.id}/edit`}
-                                className="inline-flex items-center px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300 transition-colors"
+                                to={`/conferences/${conference.id}/registrants`}
+                                className="inline-flex items-center px-3 py-1.5 bg-mint text-white rounded-md text-sm hover:bg-purple transition-colors"
                               >
-                                <FaEdit className="mr-1" />
-                                Edit
+                                <span className="mr-1">👥</span> Manage
+                                Registrants
                               </Link>
                               <button
                                 onClick={() =>
@@ -817,6 +859,47 @@ const UserDashboard: React.FC = () => {
                               >
                                 View Recording
                               </Link>
+                              <Link
+                                to={`/conferences/${conference.id}/registrants`}
+                                className="inline-flex items-center px-3 py-1.5 bg-mint text-white rounded-md text-sm hover:bg-purple transition-colors"
+                              >
+                                <span className="mr-1">👥</span> Manage
+                                Registrants
+                              </Link>
+                              <button
+                                onClick={() => {
+                                  // First check how many certificates are already issued
+                                  getConferenceCertificates(conference.id)
+                                    .then((certificates) => {
+                                      // If some certificates already exist, show info
+                                      if (certificates.length > 0) {
+                                        showNotification(
+                                          "info",
+                                          `${certificates.length} certificates have already been issued. You can manage them on the registrants page.`
+                                        );
+                                      }
+
+                                      // Navigate to the registrants page to manage certificates
+                                      navigate(
+                                        `/conferences/${conference.id}/registrants`
+                                      );
+                                    })
+                                    .catch((error) => {
+                                      console.error(
+                                        "Error checking certificates:",
+                                        error
+                                      );
+                                      // Still navigate to registrants page even if there's an error
+                                      navigate(
+                                        `/conferences/${conference.id}/registrants`
+                                      );
+                                    });
+                                }}
+                                className="inline-flex items-center px-3 py-1.5 bg-purple text-white rounded-md text-sm hover:bg-purple/80 transition-colors"
+                              >
+                                <FaCheckCircle className="mr-1" size={14} />{" "}
+                                Issue Certificates
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -1035,6 +1118,16 @@ const UserDashboard: React.FC = () => {
                               Attendance confirmed
                             </div>
                           )}
+                          {registration.certificateIssued &&
+                            registration.certificateId && (
+                              <Link
+                                to={`/certificates/view/${registration.certificateId}`}
+                                className="mt-2 text-sm text-purple-600 flex items-center font-medium hover:text-purple-800"
+                              >
+                                <FaGraduationCap className="mr-1" size={16} />
+                                View Certificate
+                              </Link>
+                            )}
                         </div>
                       ))}
                     </div>
@@ -1058,6 +1151,99 @@ const UserDashboard: React.FC = () => {
             >
               Browse Conferences
             </Link>
+          </div>
+
+          {/* My Certificates Section */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden mt-8">
+            <div className="p-6 border-b border-gray-200 flex items-center">
+              <div className="bg-purple-100 p-2 rounded-full mr-3">
+                <FaGraduationCap size={24} className="text-purple-600" />
+              </div>
+              <h2 className="text-xl font-bold text-charcoal">
+                My Certificates
+              </h2>
+            </div>
+
+            {certificatesLoading ? (
+              <div className="p-6 text-center">
+                <div className="inline-block w-8 h-8 border-4 border-t-purple border-gray-200 rounded-full animate-spin mb-4"></div>
+                <p className="text-gray-500">Loading your certificates...</p>
+              </div>
+            ) : certificatesError ? (
+              <div className="p-6 text-center">
+                <div className="text-red-500 text-3xl mb-2">⚠️</div>
+                <p className="text-gray-600 mb-2">{certificatesError}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-mint hover:underline"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : certificates.length === 0 ? (
+              <div className="p-6 text-center">
+                <div className="text-gray-400 text-3xl mb-4">🎓</div>
+                <h3 className="text-lg font-medium text-charcoal mb-2">
+                  No Certificates Yet
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Attend conferences and get your participation recognized with
+                  certificates.
+                </p>
+              </div>
+            ) : (
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {certificates.map((certificate) => (
+                    <div
+                      key={certificate.id}
+                      className="border border-gray-200 hover:border-purple rounded-lg p-4 transition-colors"
+                    >
+                      <div className="flex items-start">
+                        <div className="bg-purple-100 p-3 rounded-lg mr-3 flex-shrink-0">
+                          <FaGraduationCap
+                            size={24}
+                            className="text-purple-600"
+                          />
+                        </div>
+                        <div className="flex-grow">
+                          <h4 className="font-medium text-charcoal mb-1">
+                            {certificate.conferenceName}
+                          </h4>
+                          <p className="text-sm text-gray-600 mb-2">
+                            Issued:{" "}
+                            {certificate.issueDate?.seconds
+                              ? new Date(
+                                  certificate.issueDate.seconds * 1000
+                                ).toLocaleDateString()
+                              : "Unknown date"}
+                          </p>
+                          <Link
+                            to={`/certificates/view/${certificate.id}`}
+                            className="inline-flex items-center text-purple-600 hover:text-purple-800"
+                          >
+                            View Certificate
+                            <svg
+                              className="w-3 h-3 ml-1"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

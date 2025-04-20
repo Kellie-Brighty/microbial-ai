@@ -9,6 +9,7 @@ import { initDebugging } from "./utils/debugging";
 import ConferenceDetailPage from "./pages/conferences/ConferenceDetailPage";
 import ConferencesPage from "./pages/conferences/ConferencesPage";
 import ConferenceCreatePage from "./pages/conferences/ConferenceCreatePage";
+import ConferenceRegistrantsPage from "./pages/conferences/ConferenceRegistrantsPage";
 import UserDashboard from "./pages/user/UserDashboard";
 import ScrollToTop from "./components/ScrollToTop";
 import { startConferenceStatusTimer } from "./utils/conferenceStatus";
@@ -16,6 +17,7 @@ import CommunitiesPage from "./pages/community/CommunitiesPage";
 import CommunityPage from "./pages/community/CommunityPage";
 import { CommunityProvider } from "./context/CommunityContext";
 import { CommunityThemeProvider } from "./context/CommunityThemeContext";
+import ViewCertificatePage from "./pages/certificates/ViewCertificatePage";
 
 // Initialize debugging
 initDebugging();
@@ -116,6 +118,10 @@ try {
                   path="/conferences/:id"
                   element={<ConferenceDetailPage />}
                 />
+                <Route
+                  path="/conferences/:id/registrants"
+                  element={<ConferenceRegistrantsPage />}
+                />
                 <Route path="/dashboard" element={<UserDashboard />} />
 
                 {/* Community Routes */}
@@ -140,6 +146,11 @@ try {
                       </div>
                     </CommunityThemeProvider>
                   }
+                />
+
+                <Route
+                  path="/certificates/view/:id"
+                  element={<ViewCertificatePage />}
                 />
 
                 <Route path="*" element={<Navigate to="/" replace />} />
