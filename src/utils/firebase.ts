@@ -954,9 +954,12 @@ export const batchIssueCertificates = async (
           const regRef = doc(db, "conferenceRegistrations", regId);
           const regSnap = await getDoc(regRef);
           if (regSnap.exists() && regSnap.data().attendanceConfirmed) {
+            const regData = regSnap.data() as ConferenceRegistration;
+            // Omit any existing id property from regData to avoid conflict
+            const { id: _, ...regDataWithoutId } = regData;
             return {
               id: regSnap.id,
-              ...(regSnap.data() as ConferenceRegistration),
+              ...regDataWithoutId,
             };
           }
           return null;
