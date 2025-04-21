@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Message } from "../App";
-import { createAssistant } from "../openai_folder/createAssistant";
+import { createAssistant } from "../utils/assistantUtils";
 import { createThread } from "../openai_folder/createThread";
 import { createRun } from "../openai_folder/createRun";
 import { performRun } from "../openai_folder/performRun";
 import { useTyping } from "../context/context";
-import { IoSend } from "react-icons/io5";
-import { FaMicrochip } from "react-icons/fa6";
+
 import { UserPersonalizationData } from "../utils/userPersonalization";
 import { useAuth } from "../context/AuthContext";
-import { getUserProfile } from "../utils/firebase";
+import { getUserProfile } from "../utils/userProfile";
 
 interface MessageInputProps {
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
@@ -42,7 +41,6 @@ const MessageInput: React.FC<MessageInputProps> = ({
 }) => {
   const { setTyping, isTyping } = useTyping();
   const { currentUser } = useAuth();
-  const [selectedFile, _] = useState<File | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [localUserPersonalization, setLocalUserPersonalization] =
     useState<UserPersonalizationData>(userPersonalization);
@@ -203,7 +201,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   }, [input]);
 
   const handleSend = async () => {
-    if (input.trim() === "" && !selectedFile) return;
+    if (input.trim() === "") return;
 
     // Check if the input appears to be a personal question when user is not authenticated
     const personalQuestionPatterns = [
@@ -365,13 +363,8 @@ If the user references specific interests that aren't in the profile data provid
       setTyping(true);
 
       let result: any; // Use any type for now to handle OpenAI API response
-      if (selectedFile) {
-        console.log("Processing selected file...");
-        // result = await storyWriterTool.handler({ file: selectedFile });
-      } else {
-        const run = await createRun(client, thread, assistant.id);
-        result = await performRun(client, thread, run);
-      }
+      const run = await createRun(client, thread, assistant.id);
+      result = await performRun(client, thread, run);
 
       if (result) {
         setTyping(false);
@@ -570,69 +563,71 @@ If the user references specific interests that aren't in the profile data provid
     }
   };
 
-  // Use local user personalization for UI elements
-  const displayData = currentUser
-    ? localUserPersonalization
-    : userPersonalization;
+  // Compute display data for the input placeholder
+  const displayData = {
+    isAuthenticated: currentUser !== null,
+    displayName: localUserPersonalization.displayName || "",
+    expertiseLevel: localUserPersonalization.expertiseLevel || "intermediate",
+    interests: localUserPersonalization.interests || [],
+  };
 
   return (
-    <div className="bg-offWhite p-3 sm:p-4 border-t border-lightGray">
-      <div className="flex items-center bg-white rounded-full shadow-sm overflow-hidden border border-lightGray hover:border-mint transition-colors">
-        <div className="flex-1 flex items-center">
-          <textarea
-            ref={inputRef}
-            rows={1}
-            className="flex-1 p-3 outline-none text-charcoal placeholder-gray-400 resize-none overflow-hidden min-h-[40px] max-h-[100px]"
-            placeholder={
-              displayData.isAuthenticated
-                ? `Ask about microbiology, ${
-                    displayData.displayName || "User"
-                  }...`
-                : "Ask about microbiology..."
-            }
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isTyping}
-          />
-          {isTyping && (
-            <div className="flex items-center pr-3">
-              <div className="flex items-center space-x-2 bg-mint bg-opacity-10 px-3 py-1.5 rounded-full">
-                <FaMicrochip className="text-mint" size={14} />
-                <span className="text-mint text-sm font-medium">
-                  Microbial AI is thinking...
-                </span>
-                <div className="flex space-x-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-mint animate-pulse"></div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-mint animate-pulse delay-150"></div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-mint animate-pulse delay-300"></div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+    <div className="p-2 md:p-3">
+      <div className="flex items-center border border-gray-300 dark:border-gray-600 bg-white dark:bg-charcoal rounded-full px-4 py-3 shadow-sm hover:shadow-md transition-shadow focus-within:border-mint focus-within:shadow-[0_0_0_1px_rgba(80,219,180,0.1),0_0_0_4px_rgba(80,219,180,0.1)] dark:focus-within:shadow-[0_0_0_1px_rgba(80,219,180,0.2),0_0_0_4px_rgba(80,219,180,0.2)]">
+        <textarea
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="flex-1 bg-transparent outline-none resize-none overflow-hidden min-h-[24px] max-h-32 text-sm dark:text-white focus:ring-0 focus:outline-none"
+          placeholder={`Ask about microbiology${
+            displayData.isAuthenticated
+              ? `, ${displayData.displayName.split(" ")[0]}`
+              : ""
+          }...`}
+          rows={1}
+        />
+        <div className="flex-shrink-0 ml-2 h-8 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1"></div>
         <button
-          className={`p-3 text-white rounded-full transition-colors ${
-            input.trim().length > 0
-              ? "bg-mint hover:bg-purple"
-              : "bg-gray-300 cursor-not-allowed"
-          }`}
           onClick={handleSend}
-          disabled={!input.trim().length || isTyping}
-          aria-label="Send message"
+          disabled={isTyping || input.trim() === ""}
+          className={`flex-shrink-0 ml-2 p-2.5 rounded-full transition-colors ${
+            isTyping || input.trim() === ""
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-mint hover:bg-purple text-white transition-colors shadow-sm"
+          }`}
+          title="Send message"
         >
-          <IoSend size={18} />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
         </button>
       </div>
+
       <div className="text-xs text-gray-400 text-center mt-2 px-2">
         <span className="hidden sm:inline">
-          {displayData.isAuthenticated
-            ? `Personalized responses based on your ${
+          {displayData.isAuthenticated ? (
+            <span className="flex items-center justify-center space-x-1">
+              <span className="h-1.5 w-1.5 bg-mint rounded-full"></span>
+              <span>{`Personalized for your ${
                 displayData.expertiseLevel || "intermediate"
-              } expertise level and interests: ${
+              } expertise in ${
                 displayData.interests?.join(", ") || "microbiology"
-              }`
-            : "Microbial AI is designed to assist with advanced microbiology research and education"}
+              }`}</span>
+            </span>
+          ) : (
+            "Microbial AI is designed to assist with advanced microbiology research and education"
+          )}
         </span>
         <span className="sm:hidden">Type your question about microbiology</span>
       </div>

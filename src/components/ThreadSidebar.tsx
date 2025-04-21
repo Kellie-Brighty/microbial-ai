@@ -5,6 +5,8 @@ import { IoCreateOutline } from "react-icons/io5";
 import { useTyping } from "../context/context";
 import { GiMicroscope, GiDna1 } from "react-icons/gi";
 import { FaFlask } from "react-icons/fa";
+import { getThreadImageMessages, getImageData } from "../utils/imageStorage";
+import { Message } from "../App";
 
 // Thread type definition
 
@@ -38,13 +40,49 @@ const ThreadSidebar: React.FC<ThreadSidebarProps> = ({
     setThreadId(threadId);
     setSelectedThread(threadId);
     const threadMessages = await client.beta.threads.messages.list(threadId);
+
+    // Get messages data
+    let messages = threadMessages.data.map((message: any) => ({
+      ...message,
+      assistant_id: message.assistant_id || "",
+    }));
+
+    // Restore image data for messages in this thread
+    try {
+      const imageMessageIds = await getThreadImageMessages(threadId);
+
+      if (imageMessageIds.length > 0) {
+        console.log(
+          `Found ${imageMessageIds.length} image messages to restore`
+        );
+
+        // For each image message, retrieve the image data
+        for (const messageId of imageMessageIds) {
+          const imageData = await getImageData(messageId);
+
+          if (imageData) {
+            // Find and update the message with image data
+            messages = messages.map((msg: Message) =>
+              msg.id === messageId
+                ? {
+                    ...msg,
+                    metadata: {
+                      ...msg.metadata,
+                      hasImage: true,
+                      imageUrl: imageData,
+                    },
+                  }
+                : msg
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error restoring image data:", error);
+    }
+
     setThreadLoading(false);
-    setMessages(
-      threadMessages.data.map((message: any) => ({
-        ...message,
-        assistant_id: message.assistant_id || "",
-      }))
-    );
+    setMessages(messages);
   };
 
   // Toggle sidebar collapse
@@ -65,10 +103,10 @@ const ThreadSidebar: React.FC<ThreadSidebarProps> = ({
       className={`${
         isCollapsed ? "w-[60px] md:w-[80px]" : "w-[260px]"
       } bg-white h-full flex 
-      flex-col shadow-md transition-all duration-300 border-r border-lightGray`}
+      flex-col shadow-md transition-all duration-300 border-r border-lightGray overflow-hidden`}
     >
       {/* Logo and brand */}
-      <div className="bg-mint text-white p-3 flex items-center justify-center">
+      <div className="bg-mint text-white p-3 flex items-center justify-center flex-shrink-0">
         {!isCollapsed ? (
           <div className="flex items-center space-x-2">
             <GiDna1 size={24} />
@@ -80,7 +118,7 @@ const ThreadSidebar: React.FC<ThreadSidebarProps> = ({
       </div>
 
       {/* Top icons: Toggle and Create Thread */}
-      <div className="flex justify-between items-center p-3 border-b border-lightGray">
+      <div className="flex justify-between items-center p-3 border-b border-lightGray flex-shrink-0">
         {/* Toggle Sidebar Icon */}
         <button
           onClick={toggleSidebar}
@@ -105,7 +143,7 @@ const ThreadSidebar: React.FC<ThreadSidebarProps> = ({
         )}
       </div>
 
-      {/* Thread List */}
+      {/* Thread List - Scrollable area */}
       <div className="flex-1 overflow-y-auto p-2 overscroll-contain">
         {!isCollapsed ? (
           <>

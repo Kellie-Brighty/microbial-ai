@@ -8,6 +8,7 @@ import TypingIndicator from "./components/TypingIndidcator";
 import MessageInput from "./components/MessageInput";
 import ReactMarkdown from "react-markdown";
 import CreateThreadModal from "./components/CreateThreadModal";
+import VisionAnalysisModal from "./components/VisionAnalysisModal";
 import {
   FaBars,
   FaSignInAlt,
@@ -100,10 +101,10 @@ const ChatContent: React.FC<{
   );
 
   return (
-    <div className="flex-1 flex flex-col relative overflow-y-hidden shadow-md bg-white">
-      {/* Chat Header */}
+    <div className="flex-1 flex flex-col h-full overflow-hidden relative shadow-md bg-white">
+      {/* Chat Header - Fixed at the top */}
       <div
-        className={`flex items-center w-full border-b border-lightGray p-4 bg-offWhite shadow-sm`}
+        className={`flex items-center w-full border-b border-lightGray p-4 bg-offWhite shadow-sm flex-shrink-0`}
       >
         <div className="pl-8 md:pl-0 flex items-center space-x-3 flex-1">
           <div className="relative">
@@ -152,7 +153,7 @@ const ChatContent: React.FC<{
             </button>
           )}
 
-          <div className="bg-offWhite p-2 rounded-full text-mint hover:bg-lightGray transition-colors hidden sm:block">
+          <div className="bg-offWhite p-2 rounded-full text-mint hover:bg-lightGray transition-colors">
             <FaMicrochip size={18} />
           </div>
           <div className="bg-offWhite p-2 rounded-full text-purple hover:bg-lightGray transition-colors">
@@ -161,7 +162,7 @@ const ChatContent: React.FC<{
         </div>
       </div>
 
-      {/* Chat Messages */}
+      {/* Chat Messages - Scrollable area */}
       <div className="flex-1 overflow-y-auto w-full p-3 md:p-4">
         {threadLoading ? (
           <div className="flex justify-center items-center h-full">
@@ -264,6 +265,20 @@ const ChatContent: React.FC<{
                           : "justify-end"
                       }`}
                     >
+                      {message.role === "assistant" && (
+                        <div className="flex-shrink-0 mr-2">
+                          <div className="relative">
+                            <img
+                              src={AgenNicky}
+                              alt="Microbial AI"
+                              className="w-8 h-8 rounded-full border-2 border-mint"
+                            />
+                            <div className="absolute -bottom-1 -right-1 text-mint">
+                              <GiDna1 size={12} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div
                         className={`rounded-lg p-3 max-w-[80%] md:max-w-[70%] overflow-hidden ${
                           message.role === "assistant"
@@ -271,6 +286,25 @@ const ChatContent: React.FC<{
                             : "bg-mint text-white ml-auto"
                         }`}
                       >
+                        {/* Display attached images if they exist */}
+                        {message.metadata?.hasImage &&
+                          message.attachments &&
+                          message.attachments.length > 0 && (
+                            <div className="mb-2">
+                              <img
+                                src={
+                                  message.metadata.imageUrl ||
+                                  "https://via.placeholder.com/150?text=Image"
+                                }
+                                alt={
+                                  message.attachments[0].name ||
+                                  "Attached image"
+                                }
+                                className="rounded-lg max-w-full h-auto max-h-60 object-contain mb-2"
+                              />
+                            </div>
+                          )}
+
                         {message.content &&
                         message.content.length > 0 &&
                         message.content[0].text.value ? (
@@ -281,6 +315,24 @@ const ChatContent: React.FC<{
                           <TypingIndicator />
                         )}
                       </div>
+                      {message.role === "user" && (
+                        <div className="flex-shrink-0 ml-2">
+                          <div className="w-8 h-8 rounded-full bg-purple text-white flex items-center justify-center">
+                            {currentUser?.photoURL ? (
+                              <img
+                                src={currentUser.photoURL}
+                                alt="User"
+                                className="w-8 h-8 rounded-full"
+                              />
+                            ) : (
+                              <span className="font-semibold">
+                                {currentUser?.displayName?.[0]?.toUpperCase() ||
+                                  "U"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -291,8 +343,8 @@ const ChatContent: React.FC<{
         )}
       </div>
 
-      {/* Message Input */}
-      <div className="flex-shrink-0 p-3 border-t border-lightGray">
+      {/* Message Input - Fixed at the bottom */}
+      <div className="flex-shrink-0 border-t border-lightGray">
         <MessageInput
           setMessages={setMessages}
           input={input}
@@ -319,6 +371,7 @@ export default function App() {
   const [_, setNewMessage] = useState("");
   const [createThreadModal, setCreatThreadModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [visionModalOpen, setVisionModalOpen] = useState(false);
 
   // Auth states
   const { currentUser, loading: authLoading } = useAuth();
@@ -488,7 +541,16 @@ export default function App() {
         onClose={hideNotification}
       />
 
-      <div className="flex h-screen w-screen max-w-[100vw] relative overflow-hidden">
+      {/* Vision Analysis Modal */}
+      {visionModalOpen && (
+        <VisionAnalysisModal
+          isOpen={visionModalOpen}
+          onClose={() => setVisionModalOpen(false)}
+          client={client}
+        />
+      )}
+
+      <div className="min-h-screen h-screen flex flex-col lg:flex-row dark:text-white overflow-hidden">
         {/* Mobile sidebar toggle */}
         <button
           className="md:hidden fixed top-4 left-4 z-50 p-2 bg-mint rounded-full text-white shadow-md"
@@ -497,14 +559,48 @@ export default function App() {
           <FaBars size={20} />
         </button>
 
+        {/* Vision Analysis Button - Fixed position */}
+        <button
+          onClick={() =>
+            currentUser ? setVisionModalOpen(true) : setAuthModalOpen(true)
+          }
+          className="fixed top-4 right-4 z-50 bg-gradient-to-r from-mint to-purple text-white p-2 rounded-full hover:opacity-90 transition-all shadow-md flex items-center space-x-1"
+          title={
+            currentUser ? "Try Image Analysis" : "Sign in to use Image Analysis"
+          }
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-5 w-5"
+          >
+            <path d="M6 18h8" />
+            <path d="M3 22h18" />
+            <path d="M14 22a7 7 0 1 0 0-14h-1" />
+            <path d="M9 14h2" />
+            <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2" />
+            <path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
+          </svg>
+          <span className="text-xs hidden md:block">
+            {currentUser ? "Image Analysis" : "Sign in"}
+          </span>
+        </button>
+
         {/* Left Sidebar for Threads */}
         <div
           className={`sidebar-container ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-          } transition-transform duration-300 ease-in-out md:relative fixed top-0 left-0 h-full z-40 md:translate-x-0`}
+          } transition-transform duration-300 ease-in-out fixed top-0 left-0 h-full z-40 md:translate-x-0 md:h-screen md:sticky md:top-0 md:flex-shrink-0 md:w-72`}
         >
           <ThreadSidebar
-            onCreateThread={() => setCreatThreadModal(true)}
+            onCreateThread={() =>
+              currentUser ? setCreatThreadModal(true) : setAuthModalOpen(true)
+            }
             client={client}
             setMessages={setMessages}
             setThreadId={setThreadId}
@@ -521,23 +617,51 @@ export default function App() {
           ></div>
         )}
 
-        {/* Main Chat Section */}
-        <ChatContent
-          messages={messages}
-          threadLoading={threadLoading}
-          setCreatThreadModal={setCreatThreadModal}
-          setMessages={setMessages}
-          input={input}
-          setInput={setInput}
-          threadId={threadId}
-          client={client}
-          userPersonalization={userPersonalization}
-          addUserContextToMessages={addUserContextToMessages}
-          currentUser={currentUser}
-          setProfileOpen={setProfileOpen}
-          setAuthModalOpen={setAuthModalOpen}
-          setSettingsOpen={setSettingsOpen}
-        />
+        {/* Main Chat Section - Make it flex-1 and overflow-hidden to contain the chat content */}
+        <div className="flex-1 flex flex-col h-screen overflow-hidden">
+          {currentUser ? (
+            <ChatContent
+              messages={messages}
+              threadLoading={threadLoading}
+              setCreatThreadModal={setCreatThreadModal}
+              setMessages={setMessages}
+              input={input}
+              setInput={setInput}
+              threadId={threadId}
+              client={client}
+              userPersonalization={userPersonalization}
+              addUserContextToMessages={addUserContextToMessages}
+              currentUser={currentUser}
+              setProfileOpen={setProfileOpen}
+              setAuthModalOpen={setAuthModalOpen}
+              setSettingsOpen={setSettingsOpen}
+            />
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center bg-white p-6">
+              <div className="bg-offWhite rounded-2xl p-8 shadow-sm max-w-md text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="p-4 bg-mint rounded-full text-white">
+                    <GiDna1 size={36} />
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold text-charcoal mb-3">
+                  Sign in to access Microbial AI
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Please sign in to chat with Microbial AI and use the image
+                  analysis features.
+                </p>
+                <button
+                  onClick={() => setAuthModalOpen(true)}
+                  className="bg-mint text-white px-6 py-3 rounded-full hover:bg-purple transition-colors flex items-center justify-center mx-auto space-x-2"
+                >
+                  <FaSignInAlt size={16} />
+                  <span>Sign In Now</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </TypingProvider>
   );

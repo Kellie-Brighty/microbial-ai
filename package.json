@@ -23,6 +23,7 @@
     "firebase": "^11.6.0",
     "git-filter-repo": "^0.0.30",
     "jsdom": "^25.0.1",
+    "localforage": "^1.10.0",
     "moment": "^2.30.1",
     "office-text-extractor": "^3.0.3",
     "openai": "^4.77.0",
