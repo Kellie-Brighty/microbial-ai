@@ -28,6 +28,11 @@ import {
 } from "./utils/userPersonalization";
 import { applyThemeSettings } from "./utils/themeUtils";
 import Notification, { NotificationType } from "./components/ui/Notification";
+import {
+  recordVisit,
+  recordUserActivity,
+  ActivityType,
+} from "./utils/activityTracking";
 
 export interface MessageContent {
   text: {
@@ -438,6 +443,33 @@ export default function App() {
       );
     }
   }, []);
+
+  // Record user visits for analytics
+  useEffect(() => {
+    const recordUserVisit = async () => {
+      if (currentUser) {
+        await recordVisit(currentUser.uid);
+        await recordUserActivity(
+          currentUser.uid,
+          currentUser.displayName || "User",
+          ActivityType.LOGIN,
+          { sessionId: Date.now().toString() }
+        );
+
+        // For testing, add a second activity with plain string
+        await recordUserActivity(
+          currentUser.uid,
+          currentUser.displayName || "User",
+          "Login Test",
+          { sessionId: Date.now().toString() + "-test" }
+        );
+      } else {
+        await recordVisit(); // Anonymous visit
+      }
+    };
+
+    recordUserVisit();
+  }, [currentUser]);
 
   // Load user personalization data when user auth state changes
   useEffect(() => {

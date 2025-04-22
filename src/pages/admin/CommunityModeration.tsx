@@ -187,6 +187,12 @@ const CommunityModeration: React.FC = () => {
 
             <div className="flex items-center space-x-4">
               <button
+                onClick={() => navigate("/admin/activity")}
+                className="text-charcoal hover:text-mint transition-colors px-3 py-2"
+              >
+                Activity Dashboard
+              </button>
+              <button
                 onClick={() => navigate("/admin/communities")}
                 className="text-mint font-medium border-b-2 border-mint px-3 py-2"
               >

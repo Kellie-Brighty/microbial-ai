@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import CommunityModeration from "../pages/admin/CommunityModeration";
 import ModerationPage from "../pages/admin/ModerationPage";
 import AdminAuth from "../pages/admin/AdminAuth";
+import ActivityDashboard from "../pages/admin/ActivityDashboard";
 
 // Admin routes with simple authentication check
 const AdminRoutes: React.FC = () => {
@@ -21,9 +22,10 @@ const AdminRoutes: React.FC = () => {
 
   return (
     <Routes>
+      <Route path="/activity" element={<ActivityDashboard />} />
       <Route path="/moderation" element={<ModerationPage />} />
       <Route path="/communities" element={<CommunityModeration />} />
-      <Route path="*" element={<Navigate to="/admin/moderation" replace />} />
+      <Route path="*" element={<Navigate to="/admin/activity" replace />} />
     </Routes>
   );
 };
