@@ -16,9 +16,7 @@ import {
   FiMessageSquare,
   FiImage,
   FiActivity,
-  FiLogOut,
-  FiClock,
-  FiCalendar,
+  FiRefreshCw,
 } from "react-icons/fi";
 import {
   BarChart,
@@ -106,11 +104,15 @@ const ActivityDashboard: React.FC = () => {
     activityByType: [],
   });
   const [timeFilter, setTimeFilter] = useState<"day" | "week" | "month">("day");
-
-  const handleLogout = () => {
-    localStorage.removeItem("adminAuthenticated");
-    navigate("/admin");
-  };
+  const [notification, _setNotification] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+    isVisible: boolean;
+  }>({
+    message: "",
+    type: "info",
+    isVisible: false,
+  });
 
   // Fetch user statistics
   const fetchUserStats = async () => {
@@ -314,348 +316,296 @@ const ActivityDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-offWhite">
-      {/* Admin Header */}
-      <header className="bg-white border-b border-lightGray shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-charcoal">Admin Portal</h1>
+    <div className="p-6">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-purple mb-2 flex items-center">
+          <FiActivity className="mr-2" /> Activity Dashboard
+        </h1>
+        <p className="text-gray-600">
+          Monitor user activity and platform usage statistics
+        </p>
+      </div>
 
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate("/admin/activity")}
-                className="text-mint font-medium border-b-2 border-mint px-3 py-2"
-              >
-                Activity Dashboard
-              </button>
-              <button
-                onClick={() => navigate("/admin/communities")}
-                className="text-charcoal hover:text-mint transition-colors px-3 py-2"
-              >
-                Communities
-              </button>
-              <button
-                onClick={() => navigate("/admin/moderation")}
-                className="text-charcoal hover:text-mint transition-colors px-3 py-2"
-              >
-                Content Moderation
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex items-center text-red-500 hover:text-red-700 transition-colors"
-                title="Logout"
-              >
-                <FiLogOut size={18} />
-              </button>
-            </div>
-          </div>
+      {/* Notification */}
+      {notification.isVisible && (
+        <div
+          className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            notification.type === "success"
+              ? "bg-green-500"
+              : notification.type === "error"
+              ? "bg-red-500"
+              : "bg-blue-500"
+          } text-white`}
+        >
+          {notification.message}
         </div>
-      </header>
+      )}
 
-      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-2">
-                Activity Dashboard
-              </h2>
-              <p className="text-gray-600">
-                Monitor user activity and engagement on the Microbial AI
-                platform.
+      {/* Time filter */}
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+        <div className="flex space-x-4 items-center">
+          <span className="text-gray-700 font-medium">Time Range:</span>
+          <button
+            onClick={() => setTimeFilter("day")}
+            className={`px-3 py-1 rounded-full ${
+              timeFilter === "day"
+                ? "bg-purple text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Today
+          </button>
+          <button
+            onClick={() => setTimeFilter("week")}
+            className={`px-3 py-1 rounded-full ${
+              timeFilter === "week"
+                ? "bg-purple text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            This Week
+          </button>
+          <button
+            onClick={() => setTimeFilter("month")}
+            className={`px-3 py-1 rounded-full ${
+              timeFilter === "month"
+                ? "bg-purple text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            This Month
+          </button>
+          <button
+            onClick={() => fetchData()}
+            className="ml-auto px-3 py-1 flex items-center text-gray-700 hover:bg-gray-100 rounded-full"
+            title="Refresh data"
+          >
+            <FiRefreshCw className={loading ? "animate-spin" : ""} />
+            <span className="ml-1">Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Rest of the dashboard content */}
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mint"></div>
+        </div>
+      ) : (
+        <>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-lg shadow-sm p-4 border border-lightGray">
+              <div className="flex items-center mb-2">
+                <div className="p-2 bg-purple bg-opacity-10 rounded-full mr-3">
+                  <FiUsers className="text-purple" size={20} />
+                </div>
+                <h3 className="text-gray-500 font-medium">Total Users</h3>
+              </div>
+              <p className="text-3xl font-bold text-charcoal">
+                {userStats.totalUsers}
+              </p>
+              <p className="text-sm text-green-500 mt-2">
+                +{userStats.newUsersToday} today
               </p>
             </div>
-            <button
-              onClick={() => fetchData()}
-              className="bg-white py-2 px-4 rounded-lg border border-lightGray hover:bg-offWhite transition-colors flex items-center space-x-2"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin h-4 w-4 border-2 border-mint rounded-full border-t-transparent"></div>
-                  <span>Refreshing...</span>
-                </>
-              ) : (
-                <>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    fill="currentColor"
-                    className="bi bi-arrow-clockwise"
-                    viewBox="0 0 16 16"
+
+            <div className="bg-white rounded-lg shadow-sm p-4 border border-lightGray">
+              <div className="flex items-center mb-2">
+                <div className="p-2 bg-mint bg-opacity-10 rounded-full mr-3">
+                  <FiActivity className="text-mint" size={20} />
+                </div>
+                <h3 className="text-gray-500 font-medium">Active Today</h3>
+              </div>
+              <p className="text-3xl font-bold text-charcoal">
+                {userStats.activeUsersToday}
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                {Math.round(
+                  (userStats.activeUsersToday / userStats.totalUsers) * 100
+                )}
+                % of total users
+              </p>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm p-4 border border-lightGray">
+              <div className="flex items-center mb-2">
+                <div className="p-2 bg-blue-500 bg-opacity-10 rounded-full mr-3">
+                  <FiMessageSquare className="text-blue-500" size={20} />
+                </div>
+                <h3 className="text-gray-500 font-medium">Total Messages</h3>
+              </div>
+              <p className="text-3xl font-bold text-charcoal">
+                {activityStats.totalMessages}
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                Across {activityStats.totalThreads} threads
+              </p>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm p-4 border border-lightGray">
+              <div className="flex items-center mb-2">
+                <div className="p-2 bg-pink-500 bg-opacity-10 rounded-full mr-3">
+                  <FiImage className="text-pink-500" size={20} />
+                </div>
+                <h3 className="text-gray-500 font-medium">Image Analysis</h3>
+              </div>
+              <p className="text-3xl font-bold text-charcoal">
+                {activityStats.totalImageAnalysis}
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                Visual AI queries processed
+              </p>
+            </div>
+          </div>
+
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Messages by Hour Chart */}
+            <div className="bg-white rounded-lg shadow-sm p-4 border border-lightGray">
+              <h3 className="text-lg font-semibold text-charcoal mb-4">
+                Messages by Hour
+              </h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={activityStats.messagesByHour}
+                    margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
                   >
-                    <path
-                      fillRule="evenodd"
-                      d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"
-                    />
-                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
-                  </svg>
-                  <span>Refresh Data</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Time filter controls */}
-        <div className="flex items-center mb-6 bg-white p-3 rounded-lg shadow-sm">
-          <span className="mr-3 text-gray-700 font-medium">Time Period:</span>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setTimeFilter("day")}
-              className={`px-4 py-2 rounded-full flex items-center ${
-                timeFilter === "day"
-                  ? "bg-mint text-white"
-                  : "bg-offWhite text-charcoal"
-              }`}
-            >
-              <FiClock className="mr-1" />
-              24 Hours
-            </button>
-            <button
-              onClick={() => setTimeFilter("week")}
-              className={`px-4 py-2 rounded-full flex items-center ${
-                timeFilter === "week"
-                  ? "bg-mint text-white"
-                  : "bg-offWhite text-charcoal"
-              }`}
-            >
-              <FiCalendar className="mr-1" />7 Days
-            </button>
-            <button
-              onClick={() => setTimeFilter("month")}
-              className={`px-4 py-2 rounded-full flex items-center ${
-                timeFilter === "month"
-                  ? "bg-mint text-white"
-                  : "bg-offWhite text-charcoal"
-              }`}
-            >
-              <FiCalendar className="mr-1" />
-              30 Days
-            </button>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mint"></div>
-          </div>
-        ) : (
-          <>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white rounded-lg shadow-sm p-4 border border-lightGray">
-                <div className="flex items-center mb-2">
-                  <div className="p-2 bg-purple bg-opacity-10 rounded-full mr-3">
-                    <FiUsers className="text-purple" size={20} />
-                  </div>
-                  <h3 className="text-gray-500 font-medium">Total Users</h3>
-                </div>
-                <p className="text-3xl font-bold text-charcoal">
-                  {userStats.totalUsers}
-                </p>
-                <p className="text-sm text-green-500 mt-2">
-                  +{userStats.newUsersToday} today
-                </p>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm p-4 border border-lightGray">
-                <div className="flex items-center mb-2">
-                  <div className="p-2 bg-mint bg-opacity-10 rounded-full mr-3">
-                    <FiActivity className="text-mint" size={20} />
-                  </div>
-                  <h3 className="text-gray-500 font-medium">Active Today</h3>
-                </div>
-                <p className="text-3xl font-bold text-charcoal">
-                  {userStats.activeUsersToday}
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  {Math.round(
-                    (userStats.activeUsersToday / userStats.totalUsers) * 100
-                  )}
-                  % of total users
-                </p>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm p-4 border border-lightGray">
-                <div className="flex items-center mb-2">
-                  <div className="p-2 bg-blue-500 bg-opacity-10 rounded-full mr-3">
-                    <FiMessageSquare className="text-blue-500" size={20} />
-                  </div>
-                  <h3 className="text-gray-500 font-medium">Total Messages</h3>
-                </div>
-                <p className="text-3xl font-bold text-charcoal">
-                  {activityStats.totalMessages}
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Across {activityStats.totalThreads} threads
-                </p>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm p-4 border border-lightGray">
-                <div className="flex items-center mb-2">
-                  <div className="p-2 bg-pink-500 bg-opacity-10 rounded-full mr-3">
-                    <FiImage className="text-pink-500" size={20} />
-                  </div>
-                  <h3 className="text-gray-500 font-medium">Image Analysis</h3>
-                </div>
-                <p className="text-3xl font-bold text-charcoal">
-                  {activityStats.totalImageAnalysis}
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Visual AI queries processed
-                </p>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#00C9A7" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {/* Messages by Hour Chart */}
-              <div className="bg-white rounded-lg shadow-sm p-4 border border-lightGray">
-                <h3 className="text-lg font-semibold text-charcoal mb-4">
-                  Messages by Hour
-                </h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={activityStats.messagesByHour}
-                      margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+            {/* Activity by Type Chart */}
+            <div className="bg-white rounded-lg shadow-sm p-4 border border-lightGray">
+              <h3 className="text-lg font-semibold text-charcoal mb-4">
+                Activity Distribution
+              </h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={activityStats.activityByType}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) =>
+                        `${name}: ${(percent * 100).toFixed(0)}%`
+                      }
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
                     >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="value" fill="#00C9A7" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Activity by Type Chart */}
-              <div className="bg-white rounded-lg shadow-sm p-4 border border-lightGray">
-                <h3 className="text-lg font-semibold text-charcoal mb-4">
-                  Activity Distribution
-                </h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={activityStats.activityByType}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) =>
-                          `${name}: ${(percent * 100).toFixed(0)}%`
-                        }
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {activityStats.activityByType.map((_entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                      {activityStats.activityByType.map((_entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
             </div>
+          </div>
 
-            {/* Recent Activity Logs */}
-            <div className="bg-white rounded-lg shadow-sm border border-lightGray overflow-hidden">
-              <div className="p-4 border-b border-lightGray">
-                <h3 className="text-lg font-semibold text-charcoal">
-                  Recent Activity
-                </h3>
-                <p className="text-sm text-gray-500">
-                  Showing latest user actions from the past{" "}
-                  {timeFilter === "day"
-                    ? "24 hours"
-                    : timeFilter === "week"
-                    ? "7 days"
-                    : "30 days"}
-                </p>
-              </div>
-
-              {activityLogs.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  No activity logs found for this time period.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-lightGray">
-                    <thead className="bg-offWhite">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          User
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Action
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Time
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Details
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-lightGray">
-                      {activityLogs.map((log) => {
-                        // Debug log for each row
-                        console.log(
-                          `Log row: ${log.id}, action:`,
-                          log.action,
-                          "action type:",
-                          typeof log.action
-                        );
-
-                        return (
-                          <tr key={log.id} className="hover:bg-offWhite">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="font-medium text-charcoal">
-                                {log.userName || "Anonymous"}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {log.userId}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <ActionDisplay action={log.action} />
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatTimestamp(log.timestamp)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {log.details
-                                ? typeof log.details === "object"
-                                  ? Object.entries(log.details)
-                                      .map(([key, value]) => `${key}: ${value}`)
-                                      .join(", ")
-                                      .substring(0, 50) +
-                                    (JSON.stringify(log.details).length > 50
-                                      ? "..."
-                                      : "")
-                                  : String(log.details).substring(0, 50) +
-                                    (String(log.details).length > 50
-                                      ? "..."
-                                      : "")
-                                : "No details"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+          {/* Recent Activity Logs */}
+          <div className="bg-white rounded-lg shadow-sm border border-lightGray overflow-hidden">
+            <div className="p-4 border-b border-lightGray">
+              <h3 className="text-lg font-semibold text-charcoal">
+                Recent Activity
+              </h3>
+              <p className="text-sm text-gray-500">
+                Showing latest user actions from the past{" "}
+                {timeFilter === "day"
+                  ? "24 hours"
+                  : timeFilter === "week"
+                  ? "7 days"
+                  : "30 days"}
+              </p>
             </div>
-          </>
-        )}
-      </div>
+
+            {activityLogs.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                No activity logs found for this time period.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-lightGray">
+                  <thead className="bg-offWhite">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Action
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Time
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Details
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-lightGray">
+                    {activityLogs.map((log) => {
+                      // Debug log for each row
+                      console.log(
+                        `Log row: ${log.id}, action:`,
+                        log.action,
+                        "action type:",
+                        typeof log.action
+                      );
+
+                      return (
+                        <tr key={log.id} className="hover:bg-offWhite">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="font-medium text-charcoal">
+                              {log.userName || "Anonymous"}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {log.userId}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <ActionDisplay action={log.action} />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {formatTimestamp(log.timestamp)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {log.details
+                              ? typeof log.details === "object"
+                                ? Object.entries(log.details)
+                                    .map(([key, value]) => `${key}: ${value}`)
+                                    .join(", ")
+                                    .substring(0, 50) +
+                                  (JSON.stringify(log.details).length > 50
+                                    ? "..."
+                                    : "")
+                                : String(log.details).substring(0, 50) +
+                                  (String(log.details).length > 50 ? "..." : "")
+                              : "No details"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };

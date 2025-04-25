@@ -19,8 +19,10 @@ import {
   FiTrash2,
   FiAlertCircle,
   FiEye as FiEyeIcon,
-  FiFilter,
-  FiLogOut,
+ 
+  FiFlag,
+  FiMessageSquare,
+  FiRefreshCw,
 } from "react-icons/fi";
 
 interface Post {
@@ -49,12 +51,19 @@ const ModerationPage: React.FC = () => {
     [key: string]: string;
   }>({});
   const [isFiltering, setIsFiltering] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [_isRefreshing, _setIsRefreshing] = useState(false);
+  const [isModalOpen, _setIsModalOpen] = useState(false);
+  const [notification, _setNotification] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+    isVisible: boolean;
+  }>({
+    message: "",
+    type: "info",
+    isVisible: false,
+  });
 
-  const handleLogout = () => {
-    localStorage.removeItem("adminAuthenticated");
-    navigate("/admin");
-  };
+  
 
   // Extract fetchFlaggedPosts into a separate function
   const fetchFlaggedPosts = async () => {
@@ -187,16 +196,16 @@ const ModerationPage: React.FC = () => {
     }
   };
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    setLoading(true);
+  // const handleRefresh = async () => {
+  //   setIsRefreshing(true);
+  //   setLoading(true);
 
-    // Wait for UI to update before fetching data
-    setTimeout(async () => {
-      await fetchFlaggedPosts();
-      setIsRefreshing(false);
-    }, 100);
-  };
+  //   // Wait for UI to update before fetching data
+  //   setTimeout(async () => {
+  //     await fetchFlaggedPosts();
+  //     setIsRefreshing(false);
+  //   }, 100);
+  // };
 
   useEffect(() => {
     // Check for admin authentication
@@ -375,6 +384,21 @@ const ModerationPage: React.FC = () => {
     setTimeout(() => setIsFiltering(false), 300);
   };
 
+  // const showNotification = (
+  //   message: string,
+  //   type: "success" | "error" | "info"
+  // ) => {
+  //   setNotification({
+  //     message,
+  //     type,
+  //     isVisible: true,
+  //   });
+
+  //   setTimeout(() => {
+  //     setNotification((prev) => ({ ...prev, isVisible: false }));
+  //   }, 3000);
+  // };
+
   // Check if admin is authenticated
   const isAdminAuthenticated =
     localStorage.getItem("adminAuthenticated") === "true";
@@ -383,261 +407,227 @@ const ModerationPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-offWhite">
-      {/* Admin Header */}
-      <header className="bg-white border-b border-lightGray shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-charcoal">Admin Portal</h1>
+    <div className="p-6">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-purple mb-2 flex items-center">
+          <FiMessageSquare className="mr-2" /> Content Moderation
+        </h1>
+        <p className="text-gray-600">
+          Review and moderate user-generated content across the platform
+        </p>
+      </div>
 
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate("/admin/activity")}
-                className="text-charcoal hover:text-mint transition-colors px-3 py-2"
-              >
-                Activity Dashboard
-              </button>
-              <button
-                onClick={() => navigate("/admin/moderation")}
-                className="text-mint font-medium border-b-2 border-mint px-3 py-2"
-              >
-                Content Moderation
-              </button>
-              <button
-                onClick={() => navigate("/admin/communities")}
-                className="text-charcoal hover:text-mint transition-colors px-3 py-2"
-              >
-                Communities
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex items-center text-red-500 hover:text-red-700 transition-colors"
-                title="Logout"
-              >
-                <FiLogOut size={18} />
-              </button>
+      {/* Notification */}
+      {notification.isVisible && (
+        <div
+          className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            notification.type === "success"
+              ? "bg-green-500"
+              : notification.type === "error"
+              ? "bg-red-500"
+              : "bg-blue-500"
+          } text-white`}
+        >
+          {notification.message}
+        </div>
+      )}
+
+      {/* Search and Filters */}
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div className="flex-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FiSearch className="text-gray-400" />
             </div>
+            <input
+              type="text"
+              placeholder="Search by content or author name"
+              className="pl-10 w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple focus:border-transparent"
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
           </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-6 flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-charcoal mb-2">
-              Content Moderation
-            </h2>
-            <p className="text-gray-600">
-              Manage reported and flagged content from the platform.
-            </p>
-          </div>
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="bg-white py-2 px-4 rounded-lg border border-lightGray hover:bg-offWhite transition-colors disabled:opacity-50 flex items-center"
-          >
-            {isRefreshing ? (
-              <>
-                <div className="animate-spin h-4 w-4 border-2 border-mint rounded-full border-t-transparent mr-2"></div>
-                Refreshing...
-              </>
-            ) : (
-              <>
-                <FiSearch className="mr-2" />
-                Refresh Content
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Filters and Search */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 border border-lightGray">
-          <div className="flex space-x-2 items-center">
-            <FiFilter className="text-gray-500 mr-2" />
+          <div className="flex space-x-2">
             <button
-              className={`px-4 py-2 rounded-full ${
-                filter === "all"
-                  ? "bg-mint text-white"
-                  : "bg-offWhite text-charcoal"
-              }`}
               onClick={() => handleFilterChange("all")}
-              disabled={isFiltering}
+              className={`px-3 py-1 rounded-full ${
+                filter === "all"
+                  ? "bg-purple text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
             >
               All
             </button>
             <button
-              className={`px-4 py-2 rounded-full ${
-                filter === "reported"
-                  ? "bg-mint text-white"
-                  : "bg-offWhite text-charcoal"
-              }`}
               onClick={() => handleFilterChange("reported")}
-              disabled={isFiltering}
+              className={`px-3 py-1 rounded-full flex items-center ${
+                filter === "reported"
+                  ? "bg-purple text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
             >
+              <FiFlag className="mr-1" />
               Reported
             </button>
             <button
-              className={`px-4 py-2 rounded-full ${
-                filter === "pending"
-                  ? "bg-mint text-white"
-                  : "bg-offWhite text-charcoal"
-              }`}
               onClick={() => handleFilterChange("pending")}
-              disabled={isFiltering}
+              className={`px-3 py-1 rounded-full ${
+                filter === "pending"
+                  ? "bg-purple text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
             >
-              Pending
+              Pending Review
             </button>
           </div>
-
-          <div className="relative w-full sm:w-64">
-            <input
-              type="text"
-              placeholder="Search content..."
-              className="w-full pl-10 pr-4 py-2 border border-lightGray rounded-full bg-offWhite focus:outline-none focus:border-mint"
-              value={searchQuery}
-              onChange={handleSearchChange}
-              disabled={isFiltering}
-            />
-            {isFiltering ? (
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <div className="animate-spin h-4 w-4 border-2 border-mint rounded-full border-t-transparent"></div>
-              </div>
-            ) : (
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            )}
-          </div>
+          <button
+            onClick={() => {
+              setLoading(true);
+              setPosts([]);
+              setSearchQuery("");
+              setFilter("all");
+              setTimeout(() => {
+                fetchFlaggedPosts();
+                setLoading(false);
+              }, 500);
+            }}
+            className="px-3 py-1 flex items-center text-gray-700 hover:bg-gray-100 rounded-full"
+            title="Refresh data"
+          >
+            <FiRefreshCw className={loading ? "animate-spin" : ""} />
+            <span className="ml-1">Refresh</span>
+          </button>
         </div>
+      </div>
 
-        {/* Content List */}
-        {loading ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow border border-lightGray">
-            <div className="animate-spin h-12 w-12 border-4 border-mint rounded-full border-t-transparent mx-auto mb-6"></div>
-            <p className="text-gray-600 font-medium mb-2">Loading content...</p>
-            <p className="text-gray-500 text-sm max-w-md mx-auto">
-              Searching through all collections for reported content. This may
-              take a moment.
-            </p>
-          </div>
-        ) : isFiltering ? (
-          <div className="bg-white p-6 rounded-lg shadow text-center border border-lightGray">
-            <div className="animate-spin h-8 w-8 border-3 border-mint rounded-full border-t-transparent mx-auto mb-4"></div>
-            <p className="text-gray-600">Filtering content...</p>
-          </div>
-        ) : filteredPosts.length === 0 ? (
-          <div className="bg-white p-6 rounded-lg shadow text-center border border-lightGray">
-            <FiSearch className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-gray-600 mb-2">
-              No content found matching your criteria.
-            </p>
-            <p className="text-gray-500 text-sm">
-              Try changing your filters or check back later.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredPosts.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white p-4 rounded-lg shadow border border-lightGray"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-lg font-medium text-charcoal">
-                      {item.author.name}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {item.communityName} •{" "}
-                      {item.createdAt
-                        ? typeof item.createdAt.toDate === "function"
-                          ? item.createdAt.toDate().toLocaleString()
-                          : typeof item.createdAt === "number"
-                          ? new Date(item.createdAt).toLocaleString()
-                          : "Unknown format"
-                        : "Unknown date"}
-                    </p>
-                  </div>
-                  <div className="flex space-x-1">
-                    {(item.flagged ||
-                      (item.reports && item.reports > 0) ||
-                      (item.reportedBy && item.reportedBy.length > 0)) && (
-                      <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full flex items-center">
-                        <FiAlertCircle className="mr-1" />
-                        {item.reports && item.reports > 0
-                          ? `Reported (${item.reports})`
-                          : "Reported"}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <p className="text-gray-700 whitespace-pre-line">
-                    {item.content.length > 200
-                      ? item.content.substring(0, 200) + "..."
-                      : item.content}
+      {/* Content List */}
+      {loading || isFiltering ? (
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin h-8 w-8 border-4 border-purple border-t-transparent rounded-full"></div>
+          <p className="mt-2 text-gray-600">Loading content...</p>
+        </div>
+      ) : filteredPosts.length === 0 ? (
+        <div className="bg-white p-6 rounded-lg shadow text-center">
+          <p className="text-gray-600">
+            No content found matching your criteria.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredPosts.map((item) => (
+            <div
+              key={item.id}
+              className="bg-white p-4 rounded-lg shadow border border-lightGray"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="text-lg font-medium text-charcoal">
+                    {item.author.name}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {item.communityName} •{" "}
+                    {item.createdAt
+                      ? typeof item.createdAt.toDate === "function"
+                        ? item.createdAt.toDate().toLocaleString()
+                        : typeof item.createdAt === "number"
+                        ? new Date(item.createdAt).toLocaleString()
+                        : "Unknown format"
+                      : "Unknown date"}
                   </p>
                 </div>
-
-                <div className="flex space-x-2">
-                  <button
-                    className={`flex items-center px-3 py-1 ${
-                      processingPosts[item.id] === "approving"
-                        ? "bg-mint/70 cursor-not-allowed"
-                        : "bg-mint hover:bg-purple"
-                    } text-white rounded-full transition-colors`}
-                    onClick={() => approvePost(item.id)}
-                    disabled={!!processingPosts[item.id]}
-                  >
-                    {processingPosts[item.id] === "approving" ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Approving...
-                      </>
-                    ) : (
-                      <>
-                        <FiCheckIcon className="mr-1" /> Approve
-                      </>
-                    )}
-                  </button>
-                  <button
-                    className={`flex items-center px-3 py-1 ${
-                      processingPosts[item.id] === "deleting"
-                        ? "bg-red-500/70 cursor-not-allowed"
-                        : "bg-red-500 hover:bg-red-600"
-                    } text-white rounded-full transition-colors`}
-                    onClick={() => deletePost(item.id)}
-                    disabled={!!processingPosts[item.id]}
-                  >
-                    {processingPosts[item.id] === "deleting" ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Deleting...
-                      </>
-                    ) : (
-                      <>
-                        <FiTrash2 className="mr-1" /> Delete
-                      </>
-                    )}
-                  </button>
-                  <button
-                    className={`flex items-center px-3 py-1 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors ${
-                      !!processingPosts[item.id]
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
-                    }`}
-                    onClick={() =>
-                      window.open(`/content/post/${item.id}`, "_blank")
-                    }
-                    disabled={!!processingPosts[item.id]}
-                  >
-                    <FiEyeIcon className="mr-1" /> View
-                  </button>
+                <div className="flex space-x-1">
+                  {(item.flagged ||
+                    (item.reports && item.reports > 0) ||
+                    (item.reportedBy && item.reportedBy.length > 0)) && (
+                    <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full flex items-center">
+                      <FiAlertCircle className="mr-1" />
+                      {item.reports && item.reports > 0
+                        ? `Reported (${item.reports})`
+                        : "Reported"}
+                    </span>
+                  )}
                 </div>
               </div>
-            ))}
+
+              <div className="mb-4">
+                <p className="text-gray-700 whitespace-pre-line">
+                  {item.content.length > 200
+                    ? item.content.substring(0, 200) + "..."
+                    : item.content}
+                </p>
+              </div>
+
+              <div className="flex space-x-2">
+                <button
+                  className={`flex items-center px-3 py-1 ${
+                    processingPosts[item.id] === "approving"
+                      ? "bg-mint/70 cursor-not-allowed"
+                      : "bg-mint hover:bg-purple"
+                  } text-white rounded-full transition-colors`}
+                  onClick={() => approvePost(item.id)}
+                  disabled={!!processingPosts[item.id]}
+                >
+                  {processingPosts[item.id] === "approving" ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Approving...
+                    </>
+                  ) : (
+                    <>
+                      <FiCheckIcon className="mr-1" /> Approve
+                    </>
+                  )}
+                </button>
+                <button
+                  className={`flex items-center px-3 py-1 ${
+                    processingPosts[item.id] === "deleting"
+                      ? "bg-red-500/70 cursor-not-allowed"
+                      : "bg-red-500 hover:bg-red-600"
+                  } text-white rounded-full transition-colors`}
+                  onClick={() => deletePost(item.id)}
+                  disabled={!!processingPosts[item.id]}
+                >
+                  {processingPosts[item.id] === "deleting" ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <FiTrash2 className="mr-1" /> Delete
+                    </>
+                  )}
+                </button>
+                <button
+                  className={`flex items-center px-3 py-1 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors ${
+                    !!processingPosts[item.id]
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
+                  onClick={() =>
+                    window.open(`/content/post/${item.id}`, "_blank")
+                  }
+                  disabled={!!processingPosts[item.id]}
+                >
+                  <FiEyeIcon className="mr-1" /> View
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Post Detail Modal */}
+      {isModalOpen && selectedPost && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full m-4 overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium">Post Details</h3>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
