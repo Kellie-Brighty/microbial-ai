@@ -1,4 +1,4 @@
-import React, { useState, useRef, TouchEvent } from "react";
+import React, { useState, useRef, TouchEvent, useEffect } from "react";
 import { IoClose, IoChevronBack, IoChevronForward } from "react-icons/io5";
 import { processImageWithVision } from "../utils/visionUtils";
 import { fileToDataURL } from "../utils/visionUtils";
@@ -6,6 +6,13 @@ import OpenAI from "openai";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "../context/AuthContext";
 import { FaSignInAlt } from "react-icons/fa";
+import {
+  hasEnoughCredits,
+  deductCredits,
+  getUserCredits,
+  CREDIT_COSTS,
+} from "../utils/creditsSystem";
+import CreditWarningModal from "./ui/CreditWarningModal";
 
 interface VisionAnalysisModalProps {
   isOpen: boolean;
@@ -27,6 +34,8 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showResultsOnMobile, setShowResultsOnMobile] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [credits, setCredits] = useState<number | null>(null);
+  const [insufficientCredits, setInsufficientCredits] = useState(false);
 
   // Touch swipe handling
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -35,6 +44,35 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
 
   // Minimum swipe distance required (in px)
   const minSwipeDistance = 50;
+
+  // Load user credits when the component mounts or currentUser changes
+  useEffect(() => {
+    const loadUserCredits = async () => {
+      if (currentUser) {
+        try {
+          const userCredits = await getUserCredits(currentUser.uid);
+          setCredits(userCredits);
+
+          // Check if user has enough credits for image analysis
+          const hasSufficientCredits = await hasEnoughCredits(
+            currentUser.uid,
+            "IMAGE_ANALYSIS"
+          );
+          setInsufficientCredits(!hasSufficientCredits);
+
+          console.log("User credits for image analysis:", userCredits);
+        } catch (error) {
+          console.error("Error loading user credits:", error);
+        }
+      } else {
+        setCredits(null);
+      }
+    };
+
+    if (isOpen) {
+      loadUserCredits();
+    }
+  }, [currentUser, isOpen]);
 
   const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
     setTouchStart(e.targetTouches[0].clientX);
@@ -105,6 +143,18 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
   const analyzeImage = async () => {
     if (!selectedImage) return;
 
+    // Check if user has enough credits
+    if (currentUser) {
+      const hasSufficientCredits = await hasEnoughCredits(
+        currentUser.uid,
+        "IMAGE_ANALYSIS"
+      );
+      if (!hasSufficientCredits) {
+        setInsufficientCredits(true);
+        return;
+      }
+    }
+
     setIsAnalyzing(true);
     try {
       const imageData = await fileToDataURL(selectedImage);
@@ -115,6 +165,23 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
       );
       setAnalysisResult(result);
       setShowResultsOnMobile(true);
+
+      // Deduct credits after successful analysis
+      if (currentUser) {
+        const deductionSuccess = await deductCredits(
+          currentUser.uid,
+          "IMAGE_ANALYSIS",
+          `Image analysis performed on ${new Date().toLocaleDateString()}`
+        );
+
+        if (deductionSuccess) {
+          // Update local credit state
+          const updatedCredits = await getUserCredits(currentUser.uid);
+          setCredits(updatedCredits);
+        } else {
+          console.error("Failed to deduct credits for image analysis");
+        }
+      }
     } catch (error) {
       console.error("Error analyzing image:", error);
       setAnalysisResult(
@@ -157,6 +224,22 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Show insufficient credits prompt
+  if (insufficientCredits && currentUser) {
+    return (
+      <CreditWarningModal
+        isOpen={insufficientCredits}
+        onClose={() => {
+          setInsufficientCredits(false);
+          onClose();
+        }}
+        creditCost={CREDIT_COSTS.IMAGE_ANALYSIS}
+        currentCredits={credits}
+        actionType="IMAGE_ANALYSIS"
+      />
     );
   }
 
@@ -207,7 +290,7 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
           </button>
         </div>
 
-        {/* Limited Time Banner - Fixed */}
+        {/* Updated Credits Banner instead of Limited Time */}
         <div className="bg-yellow-50 border-y border-yellow-200 p-2 sm:p-3 text-yellow-800 text-xs sm:text-sm flex items-start sm:items-center sticky top-[52px] sm:top-16 z-20">
           <div className="flex-shrink-0 mr-2 mt-1 sm:mt-0">
             <svg
@@ -224,10 +307,13 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
             </svg>
           </div>
           <div className="flex-1">
-            <p className="font-medium">Limited Time Free Access</p>
+            <p className="font-medium">Credit-Based System</p>
             <p className="hidden sm:block">
-              Image analysis is currently free for a limited period. After this
-              trial, a subscription will be required.
+              Image analysis costs {CREDIT_COSTS.IMAGE_ANALYSIS} credits per
+              analysis.
+              {currentUser && credits !== null
+                ? ` You have ${credits} credits remaining.`
+                : " Sign in to check your credits."}
             </p>
           </div>
         </div>
@@ -462,7 +548,14 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
                           Analyzing...
                         </span>
                       ) : (
-                        "Analyze Image"
+                        <span className="flex items-center justify-center">
+                          Analyze Image
+                          {currentUser && (
+                            <span className="text-xs bg-white bg-opacity-20 rounded-full px-2 py-0.5 ml-2">
+                              {CREDIT_COSTS.IMAGE_ANALYSIS} Credits
+                            </span>
+                          )}
+                        </span>
                       )}
                     </button>
 
@@ -640,7 +733,14 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
                     Analyzing...
                   </span>
                 ) : (
-                  "Analyze Image"
+                  <span className="flex items-center justify-center">
+                    Analyze Image
+                    {currentUser && (
+                      <span className="text-xs bg-white bg-opacity-20 rounded-full px-2 py-0.5 ml-2">
+                        {CREDIT_COSTS.IMAGE_ANALYSIS} Credits
+                      </span>
+                    )}
+                  </span>
                 )}
               </button>
             </div>

@@ -21,6 +21,7 @@ import ViewCertificatePage from "./pages/certificates/ViewCertificatePage";
 import ConferenceQuizPage from "./pages/conferences/ConferenceQuizPage";
 import ModerationPage from "./pages/admin/ModerationPage";
 import AdminRoutes from "./routes/AdminRoutes";
+import CreditsPage from "./pages/CreditsPage";
 
 // Initialize debugging
 initDebugging();
@@ -130,6 +131,7 @@ try {
                   element={<ConferenceQuizPage />}
                 />
                 <Route path="/dashboard" element={<UserDashboard />} />
+                <Route path="/credits" element={<CreditsPage />} />
 
                 {/* Community Routes */}
                 <Route

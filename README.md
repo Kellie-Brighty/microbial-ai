@@ -9,6 +9,8 @@ A specialized AI assistant for microbiology research and education that provides
 - **Profile Customization**: Set your areas of interest and preferred topics.
 - **Personalized Conversations**: The AI adapts its responses based on your profile information.
 - **Thread Management**: Create and manage conversation threads for different topics.
+- **Credit System**: Pay-as-you-go model with different credit packages for various features.
+- **Paystack Payment Integration**: Secure payment processing for purchasing credits.
 
 ## Getting Started
 
@@ -17,6 +19,7 @@ A specialized AI assistant for microbiology research and education that provides
 - Node.js (v16 or later)
 - npm or yarn
 - Firebase account for authentication and user data storage
+- Paystack account for payment processing
 
 ### Installation
 
@@ -47,6 +50,7 @@ Then edit the `.env` file to add your API keys:
 
 - OpenAI API key
 - Firebase configuration (API key, auth domain, etc.)
+- Paystack public key
 
 ### Firebase Setup
 
@@ -54,6 +58,12 @@ Then edit the `.env` file to add your API keys:
 2. Enable Authentication with Email/Password method
 3. Create a Firestore database
 4. Add your Firebase configuration to your `.env` file
+
+### Paystack Setup
+
+1. Create a Paystack account at [https://paystack.com/](https://paystack.com/)
+2. Obtain your Paystack API keys from the dashboard
+3. Add your Paystack public key to your `.env` file as `VITE_PAYSTACK_PUBLIC_KEY`
 
 ### Running the development server
 
@@ -64,6 +74,23 @@ yarn dev
 ```
 
 The application will be available at http://localhost:5173
+
+## Credit System and Payment Processing
+
+The application uses a credit-based system for its features:
+
+- Users can purchase credit packages through Paystack
+- Different features consume different amounts of credits:
+  - Chat messages: 1 credit per message
+  - Image analysis: 5 credits per analysis
+  - Conference hosting: 20 credits per conference
+- Various credit packages are available:
+  - Basic: 100 credits
+  - Standard: 300 credits
+  - Premium: 700 credits
+  - Professional: 1500 credits
+
+Payment processing is handled securely through Paystack integration.
 
 ## User Authentication and Personalization
 
@@ -136,11 +163,11 @@ export default tseslint.config({
   languageOptions: {
     // other options...
     parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
+      project: ["./tsconfig.node.json", "./tsconfig.app.json"],
       tsconfigRootDir: import.meta.dirname,
     },
   },
-})
+});
 ```
 
 - Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
@@ -149,11 +176,11 @@ export default tseslint.config({
 
 ```js
 // eslint.config.js
-import react from 'eslint-plugin-react'
+import react from "eslint-plugin-react";
 
 export default tseslint.config({
   // Set the react version
-  settings: { react: { version: '18.3' } },
+  settings: { react: { version: "18.3" } },
   plugins: {
     // Add the react plugin
     react,
@@ -162,7 +189,7 @@ export default tseslint.config({
     // other rules...
     // Enable its recommended rules
     ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
+    ...react.configs["jsx-runtime"].rules,
   },
-})
+});
 ```

@@ -6,8 +6,6 @@ import {
   FaMicrochip,
   FaRobot,
   FaArrowRight,
-  FaLock,
-  FaCheckCircle,
   FaFlask,
   FaChartBar,
   FaUsers,
@@ -16,14 +14,15 @@ import {
   FaHandshake,
   FaBriefcase,
   FaMoneyBillWave,
+  FaMicroscope,
 } from "react-icons/fa";
 import { MdLiveTv } from "react-icons/md";
 import { LiveConferenceSection } from "../components/conferences";
-// import { useAuth } from "../context/AuthContext";
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "../components/auth/AuthModal";
 import Notification, { NotificationType } from "../components/ui/Notification";
 import Header from "../components/Header";
+import { DEFAULT_NEW_USER_CREDITS, CREDIT_COSTS } from "../utils/creditsSystem";
 // import { signOut, auth } from "../utils/firebase";
 
 const LandingPage: React.FC = () => {
@@ -135,11 +134,24 @@ const LandingPage: React.FC = () => {
                   <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link
-                  to="/subscribe"
+                  to="/credits"
                   className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-purple font-bold py-3 px-8 rounded-full inline-flex items-center justify-center transition-colors group"
                 >
-                  Subscribe Now
-                  <FaLock className="ml-2" />
+                  Get Credits
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 ml-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
                 </Link>
               </div>
 
@@ -499,63 +511,211 @@ const LandingPage: React.FC = () => {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <div className="inline-block bg-mint/20 text-mint font-semibold px-4 py-1 rounded-full mb-4">
-              Pricing
+              Credit System
             </div>
             <h2 className="text-3xl md:text-4xl font-bold text-charcoal mb-4">
-              Simple, Affordable Pricing
+              Pay Only For What You Use
             </h2>
             <p className="text-gray-600 text-lg max-w-3xl mx-auto">
-              Start your microbiology research journey with our specialized AI
-              platform
+              Our flexible credit system allows you to use features as needed
+              without monthly commitments
             </p>
           </div>
 
-          <div className="max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-purple to-lightPurple p-6 text-center">
-              <h3 className="text-2xl font-bold text-white">Premium Plan</h3>
-              <div className="mt-4 flex items-baseline justify-center">
-                <span className="text-5xl font-extrabold tracking-tight text-white">
-                  ₦1,000
-                </span>
-                <span className="ml-1 text-xl text-white">/month</span>
+          <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-8">
+            {/* Free Credits */}
+            <div className="max-w-sm w-full bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all hover:-translate-y-1 hover:shadow-xl">
+              <div className="bg-gradient-to-r from-mint to-mint/80 p-6 text-center">
+                <h3 className="text-2xl font-bold text-white">
+                  New User Bonus
+                </h3>
+                <div className="mt-4 flex items-baseline justify-center">
+                  <span className="text-5xl font-extrabold tracking-tight text-white">
+                    {DEFAULT_NEW_USER_CREDITS}
+                  </span>
+                  <span className="ml-1 text-xl text-white">Free Credits</span>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <p className="text-center text-gray-600 mb-6">
+                  Every new account starts with {DEFAULT_NEW_USER_CREDITS}{" "}
+                  credits to explore our platform
+                </p>
+
+                <div className="mt-8">
+                  {currentUser ? (
+                    <Link
+                      to="/chat"
+                      className="block w-full bg-mint hover:bg-purple text-white font-semibold px-4 py-3 rounded-full transition-colors shadow-md text-center"
+                    >
+                      Start Using Credits
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => setAuthModalOpen(true)}
+                      className="block w-full bg-mint hover:bg-purple text-white font-semibold px-4 py-3 rounded-full transition-colors shadow-md text-center"
+                    >
+                      Create Free Account
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="p-6">
-              <ul className="space-y-4">
-                <li className="flex items-start">
-                  <FaCheckCircle className="text-mint mt-1 mr-2 flex-shrink-0" />
-                  <span>Unlimited AI research assistant usage</span>
-                </li>
-                <li className="flex items-start">
-                  <FaCheckCircle className="text-mint mt-1 mr-2 flex-shrink-0" />
-                  <span>Full access to all conference content</span>
-                </li>
-                <li className="flex items-start">
-                  <FaCheckCircle className="text-mint mt-1 mr-2 flex-shrink-0" />
-                  <span>Advanced microbiology research tools</span>
-                </li>
-                <li className="flex items-start">
-                  <FaCheckCircle className="text-mint mt-1 mr-2 flex-shrink-0" />
-                  <span>Priority support from our team</span>
-                </li>
-                <li className="flex items-start">
-                  <FaCheckCircle className="text-mint mt-1 mr-2 flex-shrink-0" />
-                  <span>Early access to new features</span>
-                </li>
-              </ul>
-
-              <div className="mt-8">
-                <Link
-                  to="/subscribe"
-                  className="block w-full bg-mint hover:bg-purple text-white font-semibold px-4 py-3 rounded-full transition-colors shadow-md text-center"
-                >
-                  Subscribe Now
-                </Link>
-                <p className="text-sm text-gray-500 mt-2 text-center">
-                  Cancel anytime. No long-term commitment.
-                </p>
+            {/* Credit Packages */}
+            <div className="max-w-sm w-full bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all hover:-translate-y-1 hover:shadow-xl">
+              <div className="bg-gradient-to-r from-purple to-purple/80 p-6 text-center">
+                <h3 className="text-2xl font-bold text-white">
+                  Credit Packages
+                </h3>
+                <div className="mt-4 flex items-baseline justify-center">
+                  <span className="text-5xl font-extrabold tracking-tight text-white">
+                    50-300
+                  </span>
+                  <span className="ml-1 text-xl text-white">Credits</span>
+                </div>
               </div>
+
+              <div className="p-6">
+                <ul className="space-y-4 mb-6">
+                  <li className="flex items-center justify-between border-b border-gray-100 pb-2">
+                    <div className="flex items-center">
+                      <FaRobot className="text-purple mr-2" />
+                      <span>AI Chat Messages</span>
+                    </div>
+                    <span className="bg-gray-100 px-2 py-1 rounded-full text-sm">
+                      {CREDIT_COSTS.CHAT_MESSAGE} credit/msg
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between border-b border-gray-100 pb-2">
+                    <div className="flex items-center">
+                      <FaMicroscope className="text-purple mr-2" />
+                      <span>Image Analysis</span>
+                    </div>
+                    <span className="bg-gray-100 px-2 py-1 rounded-full text-sm">
+                      {CREDIT_COSTS.IMAGE_ANALYSIS} credits/image
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between border-b border-gray-100 pb-2">
+                    <div className="flex items-center">
+                      <MdLiveTv className="text-purple mr-2" />
+                      <span>Conference Hosting</span>
+                    </div>
+                    <span className="bg-gray-100 px-2 py-1 rounded-full text-sm">
+                      {CREDIT_COSTS.CONFERENCE_HOSTING} credits
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <FaUsers className="text-purple mr-2" />
+                      <span>Price Range</span>
+                    </div>
+                    <span className="bg-gray-100 px-2 py-1 rounded-full text-sm">
+                      ₦1500-₦6000
+                    </span>
+                  </li>
+                </ul>
+
+                <div className="mt-8">
+                  {currentUser ? (
+                    <Link
+                      to="/credits"
+                      className="block w-full bg-purple hover:bg-mint text-white font-semibold px-4 py-3 rounded-full transition-colors shadow-md text-center"
+                    >
+                      Purchase Credits
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => setAuthModalOpen(true)}
+                      className="block w-full bg-purple hover:bg-mint text-white font-semibold px-4 py-3 rounded-full transition-colors shadow-md text-center"
+                    >
+                      Sign Up to Buy
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Credit system benefits */}
+          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="bg-white p-6 rounded-xl shadow">
+              <div className="w-12 h-12 bg-mint/20 rounded-full flex items-center justify-center mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 text-mint"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-charcoal mb-2">
+                No Monthly Fees
+              </h3>
+              <p className="text-gray-600">
+                Pay only for what you use without being locked into recurring
+                subscription charges.
+              </p>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow">
+              <div className="w-12 h-12 bg-mint/20 rounded-full flex items-center justify-center mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 text-mint"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-charcoal mb-2">
+                Never Expires
+              </h3>
+              <p className="text-gray-600">
+                Your credits remain valid as long as your account is active. No
+                pressure to use them by a deadline.
+              </p>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow">
+              <div className="w-12 h-12 bg-mint/20 rounded-full flex items-center justify-center mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 text-mint"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-charcoal mb-2">
+                Complete Flexibility
+              </h3>
+              <p className="text-gray-600">
+                Choose how to allocate your credits across features based on
+                your specific research needs.
+              </p>
             </div>
           </div>
         </div>
@@ -574,10 +734,10 @@ const LandingPage: React.FC = () => {
           <div className="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4">
             {currentUser ? (
               <Link
-                to="/subscribe"
+                to="/credits"
                 className="bg-mint hover:bg-white hover:text-mint text-white font-semibold px-8 py-3 rounded-full transition-colors shadow-md"
               >
-                Subscribe Now
+                Purchase Credits
               </Link>
             ) : (
               <button
@@ -703,7 +863,7 @@ const LandingPage: React.FC = () => {
                     href="#"
                     className="text-gray-100 hover:text-mint transition-colors"
                   >
-                    Subscription
+                    Credit System
                   </a>
                 </li>
                 <li>
@@ -786,10 +946,10 @@ const LandingPage: React.FC = () => {
                 </li>
                 <li>
                   <Link
-                    to="/subscribe"
+                    to="/credits"
                     className="text-mint hover:text-white transition-colors"
                   >
-                    Subscribe Now
+                    Purchase Credits
                   </Link>
                 </li>
               </ul>
@@ -817,7 +977,7 @@ const LandingPage: React.FC = () => {
                 href="#"
                 className="text-gray-100 hover:text-mint transition-colors"
               >
-                Subscription Policy
+                Credits Policy
               </a>
             </div>
           </div>

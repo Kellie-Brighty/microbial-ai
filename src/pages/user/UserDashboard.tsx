@@ -40,6 +40,9 @@ import { MdAddCircle } from "react-icons/md";
 import Notification from "../../components/ui/Notification";
 import { getComputedStatus } from "../../utils/conferenceStatus";
 import { QRCodeSVG } from "qrcode.react";
+import { FiDollarSign } from "react-icons/fi";
+import { getUserCredits } from "../../utils/creditsSystem";
+import CreditHistoryTable from "../../components/credits/CreditHistoryTable";
 // import { Timestamp as FirestoreTimestamp } from "firebase/firestore";
 
 // Add a confirmation modal component
@@ -357,6 +360,9 @@ const UserDashboard: React.FC = () => {
   >(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  // Credit balance state
+  const [credits, setCredits] = useState<number | null>(null);
+  const [creditsLoading, setCreditsLoading] = useState(true);
 
   // Notification state
   const [notification, setNotification] = useState({
@@ -518,6 +524,28 @@ const UserDashboard: React.FC = () => {
     };
 
     fetchOrganizedConferences();
+  }, [currentUser]);
+
+  // Fetch user's credit balance
+  useEffect(() => {
+    const fetchUserCredits = async () => {
+      if (!currentUser) {
+        setCreditsLoading(false);
+        return;
+      }
+
+      try {
+        setCreditsLoading(true);
+        const userCredits = await getUserCredits(currentUser.uid);
+        setCredits(userCredits);
+      } catch (error) {
+        console.error("Error fetching user credits:", error);
+      } finally {
+        setCreditsLoading(false);
+      }
+    };
+
+    fetchUserCredits();
   }, [currentUser]);
 
   // const handleSignOut = async () => {
@@ -1476,6 +1504,62 @@ const UserDashboard: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Credit balance section */}
+          {currentUser && (
+            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-charcoal flex items-center">
+                  <FiDollarSign className="mr-2 text-mint" /> Credits Balance
+                </h2>
+                <Link
+                  to="/credits"
+                  className="text-sm text-mint hover:text-purple transition-colors"
+                >
+                  Buy Credits
+                </Link>
+              </div>
+
+              <div className="mt-4">
+                {creditsLoading ? (
+                  <div className="animate-pulse h-8 bg-gray-200 rounded w-24"></div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="bg-mint/10 rounded-lg px-4 py-3">
+                      <div className="text-sm text-gray-600">
+                        Current Balance
+                      </div>
+                      <div className="text-2xl font-bold text-mint">
+                        {credits} credits
+                      </div>
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <Link
+                        to="/credits"
+                        className="px-4 py-2 bg-mint text-white rounded-lg hover:bg-purple transition-colors text-sm"
+                      >
+                        Purchase Credits
+                      </Link>
+                      <Link
+                        to="/credits?tab=history"
+                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                      >
+                        View History
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6">
+                <h3 className="text-lg font-medium text-charcoal mb-3">
+                  Recent Transactions
+                </h3>
+                <CreditHistoryTable limit={5} showAllLink={true} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

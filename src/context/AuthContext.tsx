@@ -19,6 +19,7 @@ import {
   getUserProfile,
   updateUserProfile as firebaseUpdateUserProfile,
 } from "../utils/firebase";
+import { DEFAULT_NEW_USER_CREDITS } from "../utils/creditsSystem";
 
 interface UserProfile {
   displayName?: string;
@@ -92,7 +93,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           interests: [],
           preferredTopics: [],
           createdAt: new Date(),
+          // Initialize with default credits
+          credits: DEFAULT_NEW_USER_CREDITS,
+          creditHistory: [
+            {
+              amount: DEFAULT_NEW_USER_CREDITS,
+              type: "welcome_bonus",
+              description: "Welcome bonus credits",
+              timestamp: new Date().toISOString(),
+            },
+          ],
         });
+
+        console.log(
+          `New user registered with ${DEFAULT_NEW_USER_CREDITS} initial credits`
+        );
 
         return userCredential.user;
       }

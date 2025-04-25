@@ -135,7 +135,7 @@ const ChatContent: React.FC<{
           </div>
         </div>
 
-        <div className="flex space-x-2 items-center">
+        <div className="flex-1 flex justify-center space-x-2 items-center">
           {/* User Authentication Buttons */}
           {currentUser ? (
             <>
@@ -157,7 +157,9 @@ const ChatContent: React.FC<{
               <span className="text-sm">Sign In</span>
             </button>
           )}
+        </div>
 
+        <div className="flex-1 flex justify-end space-x-2 items-center">
           <div className="bg-offWhite p-2 rounded-full text-mint hover:bg-lightGray transition-colors">
             <FaMicrochip size={18} />
           </div>
@@ -349,17 +351,19 @@ const ChatContent: React.FC<{
       </div>
 
       {/* Message Input - Fixed at the bottom */}
-      <div className="flex-shrink-0 border-t border-lightGray">
-        <MessageInput
-          setMessages={setMessages}
-          input={input}
-          setInput={setInput}
-          threadId={threadId}
-          client={client}
-          userPersonalization={userPersonalization}
-          addUserContextToMessages={addUserContextToMessages}
-        />
-      </div>
+      {threadId && (
+        <div className="flex-shrink-0 border-t border-lightGray">
+          <MessageInput
+            setMessages={setMessages}
+            input={input}
+            setInput={setInput}
+            threadId={threadId}
+            client={client}
+            userPersonalization={userPersonalization}
+            addUserContextToMessages={addUserContextToMessages}
+          />
+        </div>
+      )}
     </div>
   );
 };
@@ -596,7 +600,7 @@ export default function App() {
           onClick={() =>
             currentUser ? setVisionModalOpen(true) : setAuthModalOpen(true)
           }
-          className="fixed top-4 right-4 z-50 bg-gradient-to-r from-mint to-purple text-white p-2 rounded-full hover:opacity-90 transition-all shadow-md flex items-center space-x-1"
+          className="fixed top-4 right-4 md:right-24 z-50 bg-gradient-to-r from-mint to-purple text-white p-2 rounded-full hover:opacity-90 transition-all shadow-md flex items-center space-x-1"
           title={
             currentUser ? "Try Image Analysis" : "Sign in to use Image Analysis"
           }
