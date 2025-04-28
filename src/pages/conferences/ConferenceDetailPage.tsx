@@ -68,19 +68,12 @@ const RegistrationQRModal = ({
 }: RegistrationQRModalProps) => {
   if (!isOpen || !registration) return null;
 
-  // Generate a registration QR code value - include useful information
-  const qrValue = `CONFERENCE REGISTRATION
-Name: ${registration.fullName}
-Conference: ${conference?.title || "Conference"}
-Date: ${
-    conference?.startTime
-      ? new Date(conference.startTime.seconds * 1000).toLocaleDateString()
-      : "N/A"
-  }
-Venue: ${conference?.venue || "N/A"}
-Registration ID: ${registration.id}
-Email: ${registration.email}
-Verified: YES`;
+  // Generate a registration QR code value - include verification URL
+  const baseUrl = window.location.origin;
+  const verificationUrl = `${baseUrl}/verify-registration/${conference?.id}/${registration.id}`;
+
+  // Use the verification URL as the QR code value
+  const qrValue = verificationUrl;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">

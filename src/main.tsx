@@ -22,6 +22,7 @@ import ConferenceQuizPage from "./pages/conferences/ConferenceQuizPage";
 import ModerationPage from "./pages/admin/ModerationPage";
 import AdminRoutes from "./routes/AdminRoutes";
 import CreditsPage from "./pages/CreditsPage";
+import RegistrationVerificationPage from "./pages/conferences/RegistrationVerificationPage";
 
 // Initialize debugging
 initDebugging();
@@ -160,6 +161,12 @@ try {
                 <Route
                   path="/certificates/view/:id"
                   element={<ViewCertificatePage />}
+                />
+
+                {/* Registration Verification Route */}
+                <Route
+                  path="/verify-registration/:conferenceId/:registrationId"
+                  element={<RegistrationVerificationPage />}
                 />
 
                 {/* Admin Routes */}

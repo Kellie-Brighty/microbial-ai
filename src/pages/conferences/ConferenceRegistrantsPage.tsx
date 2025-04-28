@@ -18,10 +18,84 @@ import {
   FaCheckCircle,
   FaGraduationCap,
   FaTimes,
+  FaQrcode,
 } from "react-icons/fa";
 import Header from "../../components/Header";
 import { CommunityThemeProvider } from "../../context/CommunityThemeContext";
 import Notification from "../../components/ui/Notification";
+import { QRCodeSVG } from "qrcode.react";
+
+// Add QR Code modal component
+interface RegistrantQRModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  registration: ConferenceRegistration | null;
+  conference: Conference | null;
+}
+
+const RegistrantQRModal = ({
+  isOpen,
+  onClose,
+  registration,
+  conference,
+}: RegistrantQRModalProps) => {
+  if (!isOpen || !registration || !conference) return null;
+
+  // Generate a registration verification URL
+  const baseUrl = window.location.origin;
+  const verificationUrl = `${baseUrl}/verify-registration/${conference.id}/${registration.id}`;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+        <h3 className="text-xl font-bold text-charcoal mb-2">
+          Registration QR Code
+        </h3>
+        <p className="text-gray-600 mb-4">
+          Scan this QR code to verify registration for "{registration.fullName}
+          ".
+        </p>
+
+        <div className="bg-white p-4 rounded-lg border border-gray-200 flex flex-col items-center">
+          <div className="p-2 bg-white rounded-lg shadow-md mb-4">
+            <QRCodeSVG
+              value={verificationUrl}
+              size={200}
+              level="H"
+              includeMargin={true}
+              bgColor="#ffffff"
+              fgColor="#000000"
+            />
+          </div>
+
+          <div className="text-center">
+            <h4 className="font-bold text-charcoal">{conference.title}</h4>
+            <p className="text-sm text-gray-600">{registration.fullName}</p>
+            <p className="text-xs text-gray-500 mt-1">{registration.email}</p>
+            <p className="text-xs text-gray-400 mt-2">
+              Registration ID: {registration.id.slice(0, 8)}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-between">
+          <button
+            onClick={() => window.print()}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Print
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-mint text-white rounded-lg hover:bg-purple transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Main component content
 const ConferenceRegistrantsPageContent: React.FC = () => {
@@ -46,6 +120,11 @@ const ConferenceRegistrantsPageContent: React.FC = () => {
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
   const [selectedRegistrants, setSelectedRegistrants] = useState<string[]>([]);
   const [issuingCertificates, setIssuingCertificates] = useState(false);
+
+  // Add these new states
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [selectedRegistrant, setSelectedRegistrant] =
+    useState<ConferenceRegistration | null>(null);
 
   // Load conference data and check authorization
   useEffect(() => {
@@ -304,6 +383,12 @@ const ConferenceRegistrantsPageContent: React.FC = () => {
     (conference.status === "ended" ||
       (conference.endTime && conference.endTime.seconds * 1000 < Date.now()));
 
+  // Add this function to open the QR code modal
+  const handleShowQRCode = (registration: ConferenceRegistration) => {
+    setSelectedRegistrant(registration);
+    setIsQRModalOpen(true);
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -358,6 +443,14 @@ const ConferenceRegistrantsPageContent: React.FC = () => {
         type={notification.type}
         message={notification.message}
         onClose={() => setNotification({ ...notification, isVisible: false })}
+      />
+
+      {/* Add the QR modal component */}
+      <RegistrantQRModal
+        isOpen={isQRModalOpen}
+        onClose={() => setIsQRModalOpen(false)}
+        registration={selectedRegistrant}
+        conference={conference}
       />
 
       {/* Manual Certificate Selection Modal */}
@@ -670,38 +763,44 @@ const ConferenceRegistrantsPageContent: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex space-x-2">
+                        <div className="mt-2 flex items-center space-x-2">
                           <button
                             onClick={() =>
                               toggleAttendanceStatus(registration.id)
                             }
-                            className={`p-1.5 rounded ${
+                            className={`px-2 py-1 rounded text-xs flex items-center ${
                               registration.attendanceConfirmed
-                                ? "bg-green-100 text-green-700 hover:bg-green-200"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                ? "bg-red-100 text-red-600 hover:bg-red-200"
+                                : "bg-mint text-white hover:bg-purple"
                             }`}
-                            title={
-                              registration.attendanceConfirmed
-                                ? "Mark as not checked in"
-                                : "Mark as checked in"
-                            }
                           >
-                            <FaUserCheck size={16} />
+                            {registration.attendanceConfirmed ? (
+                              <>
+                                <FaTimes className="mr-1" /> Unmark
+                              </>
+                            ) : (
+                              <>
+                                <FaUserCheck className="mr-1" /> Attended
+                              </>
+                            )}
                           </button>
                           <button
                             onClick={() => toggleFoodStatus(registration.id)}
-                            className={`p-1.5 rounded ${
+                            className={`px-2 py-1 rounded text-xs flex items-center ${
                               registration.foodDistributed
-                                ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                ? "bg-red-100 text-red-600 hover:bg-red-200"
+                                : "bg-orange-100 text-orange-600 hover:bg-orange-200"
                             }`}
-                            title={
-                              registration.foodDistributed
-                                ? "Mark food as not given"
-                                : "Mark food as given"
-                            }
                           >
-                            <FaUtensils size={16} />
+                            {registration.foodDistributed ? (
+                              <>
+                                <FaTimes className="mr-1" /> Unmark
+                              </>
+                            ) : (
+                              <>
+                                <FaUtensils className="mr-1" /> Food
+                              </>
+                            )}
                           </button>
                           {isConferenceEnded &&
                             registration.certificateIssued &&
@@ -717,6 +816,12 @@ const ConferenceRegistrantsPageContent: React.FC = () => {
                                 Certificate
                               </a>
                             )}
+                          <button
+                            onClick={() => handleShowQRCode(registration)}
+                            className="px-2 py-1 rounded text-xs flex items-center bg-blue-100 text-blue-600 hover:bg-blue-200"
+                          >
+                            <FaQrcode className="mr-1" /> QR Code
+                          </button>
                         </div>
                       </td>
                     </tr>
