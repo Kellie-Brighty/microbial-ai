@@ -15,6 +15,7 @@ import {
   UserWithCredits,
   sendCreditsToUser,
   sendCreditsToBulkUsers,
+  getTotalUserCount,
 } from "../../utils/adminUtils";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
@@ -387,6 +388,7 @@ const CreditManagement: React.FC = () => {
     null
   );
   const [showBulkGiftModal, setShowBulkGiftModal] = useState(false);
+  const [totalUserCount, setTotalUserCount] = useState<number>(0);
   const [notification, setNotification] = useState<{
     message: string;
     type: "success" | "error" | "info";
@@ -396,6 +398,21 @@ const CreditManagement: React.FC = () => {
     type: "info",
     isVisible: false,
   });
+  const [searchPerformed, setSearchPerformed] = useState(false);
+
+  // Fetch total user count
+  useEffect(() => {
+    const fetchTotalUserCount = async () => {
+      try {
+        const count = await getTotalUserCount();
+        setTotalUserCount(count);
+      } catch (error) {
+        console.error("Error fetching total user count:", error);
+      }
+    };
+
+    fetchTotalUserCount();
+  }, []);
 
   const loadUsers = async (reset = false) => {
     setLoading(true);
@@ -406,6 +423,7 @@ const CreditManagement: React.FC = () => {
       if (reset) {
         setUsers(result.users);
         setPage(1);
+        setSearchPerformed(!!searchTerm.trim());
       } else {
         setUsers((prev) => [...prev, ...result.users]);
       }
@@ -424,7 +442,15 @@ const CreditManagement: React.FC = () => {
     loadUsers(true);
   }, []);
 
+  // Update the handleSearch function with better empty search handling
   const handleSearch = () => {
+    if (!searchTerm.trim()) {
+      showNotification("Please enter a search term", "info");
+      return;
+    }
+
+    setSearchPerformed(true);
+    setLastDoc(null);
     loadUsers(true);
   };
 
@@ -540,14 +566,22 @@ const CreditManagement: React.FC = () => {
 
   return (
     <div className="p-6">
-      {/* Header */}
+      {/* Header with Total User Count */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-purple mb-2 flex items-center">
           <FiGift className="mr-2" /> Credit Management
         </h1>
-        <p className="text-gray-600">
-          Send credits to users as gifts or rewards
-        </p>
+        <div className="flex flex-wrap items-center justify-between">
+          <p className="text-gray-600">
+            Send credits to users as gifts or rewards
+          </p>
+          <div className="flex items-center bg-purple bg-opacity-10 px-4 py-2 rounded-lg">
+            <FiUsers className="text-purple mr-2" />
+            <span className="text-white font-medium">
+              Total Users: {totalUserCount}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Notification */}
@@ -574,7 +608,7 @@ const CreditManagement: React.FC = () => {
             </div>
             <input
               type="text"
-              placeholder="Search users by name"
+              placeholder="Search users by name or email"
               className="pl-10 w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple focus:border-transparent"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -590,6 +624,7 @@ const CreditManagement: React.FC = () => {
           <button
             onClick={() => {
               setSearchTerm("");
+              setSearchPerformed(false);
               loadUsers(true);
             }}
             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 flex items-center"
@@ -597,6 +632,18 @@ const CreditManagement: React.FC = () => {
             <FiRefreshCw className="mr-2" /> Reset
           </button>
         </div>
+        {searchPerformed && (
+          <div className="mt-2 text-sm text-purple">
+            {users.length === 0 ? (
+              <span>No users found matching "{searchTerm}"</span>
+            ) : (
+              <span>
+                Showing {users.length} result{users.length !== 1 ? "s" : ""} for
+                "{searchTerm}"
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Bulk actions */}
@@ -716,7 +763,7 @@ const CreditManagement: React.FC = () => {
                     {user.email}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple bg-opacity-10 text-purple">
+                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple bg-opacity-10 text-white">
                       {user.credits}
                     </span>
                   </td>

@@ -7,6 +7,7 @@ import {
   registerForConference,
   getUserRegistrationForConference,
   ConferenceRegistration,
+  updateConference,
 } from "../../utils/firebase";
 import { getComputedStatus } from "../../utils/conferenceStatus";
 import { ConferencePlayer } from "../../components/conferences";
@@ -18,13 +19,14 @@ import {
   FaCalendarCheck,
   FaMapMarkerAlt,
   FaQrcode,
+  FaTimes,
 } from "react-icons/fa";
 import Header from "../../components/Header";
 // import { signOut, auth } from "../../utils/firebase";
 import { useAuth } from "../../context/AuthContext";
 import AuthModal from "../../components/auth/AuthModal";
 import Notification from "../../components/ui/Notification";
-import { MdLiveTv } from "react-icons/md";
+import { MdLiveTv, MdEdit } from "react-icons/md";
 import { QRCodeSVG } from "qrcode.react";
 
 // Employment status options
@@ -144,6 +146,301 @@ const RegistrationQRModal = ({
   );
 };
 
+// Add Edit Conference Modal Component
+interface EditConferenceModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  conference: Conference | null;
+  onSave: (updatedConference: Partial<Conference>) => Promise<void>;
+}
+
+const EditConferenceModal = ({
+  isOpen,
+  onClose,
+  conference,
+  onSave,
+}: EditConferenceModalProps) => {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [venue, setVenue] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tag, setTag] = useState("");
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(false);
+
+  useEffect(() => {
+    if (conference) {
+      setTitle(conference.title);
+      setDescription(conference.description);
+      setYoutubeUrl(conference.youtubeUrl);
+      setVenue(conference.venue);
+      setTags(conference.tags || []);
+      setThumbnailUrl(conference.thumbnailUrl);
+      setIsLive(conference.status === "live");
+    }
+  }, [conference]);
+
+  const handleAddTag = () => {
+    if (tag.trim() && !tags.includes(tag.trim())) {
+      setTags([...tags, tag.trim()]);
+      setTag("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter((t) => t !== tagToRemove));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!conference) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const updatedConference: Partial<Conference> = {
+        youtubeUrl, // Always updatable
+      };
+
+      // Only update these fields if not live
+      if (!isLive) {
+        updatedConference.title = title;
+        updatedConference.description = description;
+        updatedConference.venue = venue;
+        updatedConference.tags = tags;
+        updatedConference.thumbnailUrl = thumbnailUrl;
+      }
+
+      await onSave(updatedConference);
+      onClose();
+    } catch (err) {
+      console.error("Error updating conference:", err);
+      setError("Failed to update conference. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-charcoal">
+            {isLive ? "Edit Live Conference" : "Edit Conference"}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <FaTimes size={20} />
+          </button>
+        </div>
+
+        {isLive && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-sm text-yellow-700">
+            <div className="flex items-center mb-1">
+              <FaExclamationCircle className="mr-2" />
+              <span className="font-medium">Limited Edit Mode</span>
+            </div>
+            <p>
+              This conference is currently live. You can only update the YouTube
+              livestream URL. Other fields are locked until the conference ends.
+            </p>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 text-sm text-red-600">
+            <div className="flex items-center mb-1">
+              <FaExclamationCircle className="mr-2" />
+              <span className="font-medium">Error</span>
+            </div>
+            <p>{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Conference Title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-mint ${
+                isLive ? "bg-gray-100 text-gray-500" : ""
+              }`}
+              required
+              disabled={isLive}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-mint h-32 ${
+                isLive ? "bg-gray-100 text-gray-500" : ""
+              }`}
+              required
+              disabled={isLive}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              YouTube Livestream URL{" "}
+              {isLive && (
+                <span className="text-mint font-semibold">(Editable)</span>
+              )}
+            </label>
+            <input
+              type="url"
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-mint"
+              placeholder="https://www.youtube.com/embed/your-video-id"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Use embed URL format: https://www.youtube.com/embed/your-video-id
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Venue
+            </label>
+            <input
+              type="text"
+              value={venue}
+              onChange={(e) => setVenue(e.target.value)}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-mint ${
+                isLive ? "bg-gray-100 text-gray-500" : ""
+              }`}
+              required
+              disabled={isLive}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tags
+            </label>
+            <div className={`${isLive ? "opacity-50" : ""}`}>
+              <div className="flex">
+                <input
+                  type="text"
+                  value={tag}
+                  onChange={(e) => setTag(e.target.value)}
+                  className="flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-1 focus:ring-mint"
+                  placeholder="Add a tag"
+                  disabled={isLive}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddTag}
+                  className="bg-mint text-white px-4 py-2 rounded-r-md hover:bg-purple transition-colors"
+                  disabled={isLive}
+                >
+                  Add
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {tags.map((t, index) => (
+                  <span
+                    key={index}
+                    className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-sm flex items-center"
+                  >
+                    {t}
+                    {!isLive && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(t)}
+                        className="ml-1 text-gray-500 hover:text-red-500"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Thumbnail URL
+            </label>
+            <input
+              type="text"
+              value={thumbnailUrl}
+              onChange={(e) => setThumbnailUrl(e.target.value)}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-mint ${
+                isLive ? "bg-gray-100 text-gray-500" : ""
+              }`}
+              placeholder="URL to conference thumbnail image"
+              disabled={isLive}
+            />
+          </div>
+
+          <div className="flex justify-end pt-4 border-t">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md mr-2 hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-mint text-white rounded-md hover:bg-purple transition-colors flex items-center"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const ConferenceDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -194,6 +491,9 @@ const ConferenceDetailPage: React.FC = () => {
 
   // Add QR modal state
   const [qrModalOpen, setQrModalOpen] = useState(false);
+
+  // Add state for edit modal
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   // Update computed status when conference data changes
   useEffect(() => {
@@ -426,6 +726,31 @@ const ConferenceDetailPage: React.FC = () => {
       }
     } finally {
       setRegistrationLoading(false);
+    }
+  };
+
+  // Add function to handle saving conference edits
+  const handleSaveConferenceEdit = async (
+    updatedConference: Partial<Conference>
+  ) => {
+    if (!id || !conference) return;
+
+    try {
+      await updateConference(id, updatedConference);
+
+      // Update local state
+      setConference({
+        ...conference,
+        ...updatedConference,
+      });
+
+      showNotification("success", "Conference updated successfully!");
+    } catch (error) {
+      console.error("Error updating conference:", error);
+      showNotification(
+        "error",
+        "Failed to update conference. Please try again."
+      );
     }
   };
 
@@ -781,22 +1106,55 @@ const ConferenceDetailPage: React.FC = () => {
                             conferences
                           </div>
                         )}
+
+                        {/* Add edit controls for organizer when conference is live */}
+                        {isCreator && (
+                          <div className="mt-4 pt-4 border-t border-red-200">
+                            <div className="text-sm font-medium text-red-700 mb-2">
+                              Organizer Controls
+                            </div>
+                            <div className="flex flex-col gap-3">
+                              <button
+                                onClick={() => setEditModalOpen(true)}
+                                className="bg-orange-500 text-white text-sm px-4 py-2 rounded-md flex items-center justify-center hover:bg-orange-600 transition-colors"
+                              >
+                                <MdEdit className="mr-2" /> Update Livestream
+                                URL
+                              </button>
+                              <Link
+                                to={`/conferences/${id}/registrants`}
+                                className="bg-mint text-white text-sm px-4 py-2 rounded-md flex items-center justify-center hover:bg-purple transition-colors"
+                              >
+                                <span className="mr-2">👥</span> Manage
+                                Attendees
+                              </Link>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : isCreator ? (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                      <div className="flex items-center text-blue-700 mb-2">
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
+                      <div className="flex items-center text-charcoal mb-2">
                         <svg
+                          className="w-5 h-5 mr-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5 mr-2"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
                         >
                           <path
-                            fillRule="evenodd"
-                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                            clipRule="evenodd"
-                          />
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                          ></path>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                          ></path>
                         </svg>
                         <span className="font-medium">
                           Conference Organizer Tools
@@ -820,6 +1178,12 @@ const ConferenceDetailPage: React.FC = () => {
                         >
                           <span className="mr-2">🧠</span> Manage Quiz Sessions
                         </Link>
+                        <button
+                          onClick={() => setEditModalOpen(true)}
+                          className="bg-orange-500 text-white text-sm px-4 py-2 rounded-md flex items-center justify-center hover:bg-orange-600 transition-colors"
+                        >
+                          <MdEdit className="mr-2" /> Edit Conference Details
+                        </button>
                         <Link
                           to="/dashboard"
                           className="bg-gray-500 text-white text-sm px-4 py-2 rounded-md flex items-center justify-center hover:bg-gray-600 transition-colors"
@@ -1199,6 +1563,16 @@ const ConferenceDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Edit Conference Modal */}
+        {conference && (
+          <EditConferenceModal
+            isOpen={editModalOpen}
+            onClose={() => setEditModalOpen(false)}
+            conference={conference}
+            onSave={handleSaveConferenceEdit}
+          />
+        )}
       </div>
     </div>
   );

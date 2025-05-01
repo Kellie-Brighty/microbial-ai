@@ -2,10 +2,11 @@ import {
   collection,
   query,
   getDocs,
-  where,
   orderBy,
   limit,
   startAfter,
+  startAt,
+  endAt,
   DocumentData,
   QueryDocumentSnapshot,
 } from "firebase/firestore";
@@ -45,16 +46,57 @@ export const getUsers = async (
     const usersRef = collection(db, "users");
 
     if (searchTerm && searchTerm.trim() !== "") {
-      // Case insensitive search is limited in Firestore, this is a simple approach
-      // For better search, use Firestore indexes or a search service
-      const term = searchTerm.toLowerCase();
+      // Case insensitive search using a combination of approaches
+      const term = searchTerm.toLowerCase().trim();
+
+      // Try to search by displayName or email containing the term
+      // We'll use startAt and endAt for searching to find partial matches
       usersQuery = query(
         usersRef,
-        where("displayNameLower", ">=", term),
-        where("displayNameLower", "<=", term + "\uf8ff"),
         orderBy("displayNameLower"),
+        startAt(term),
+        endAt(term + "\uf8ff"),
         limit(limitCount)
       );
+
+      // If search by display name doesn't yield results, we'll try with email in the calling function
+      const snapshot = await getDocs(usersQuery);
+
+      if (snapshot.empty) {
+        // Try by email if display name search returns no results
+        usersQuery = query(
+          usersRef,
+          orderBy("email"),
+          startAt(term),
+          endAt(term + "\uf8ff"),
+          limit(limitCount)
+        );
+      } else {
+        // Return the results we already fetched
+        const users = snapshot.docs.map((doc) => {
+          const userData = doc.data();
+          return {
+            uid: doc.id,
+            displayName: userData.displayName || "Unknown User",
+            email: userData.email || "No email",
+            credits: userData.credits || 0,
+            photoURL: userData.photoURL || undefined,
+            createdAt: userData.createdAt
+              ? new Date(userData.createdAt.toDate()).toISOString()
+              : undefined,
+            lastLogin: userData.lastLogin
+              ? new Date(userData.lastLogin.toDate()).toISOString()
+              : undefined,
+          };
+        });
+
+        const lastDoc =
+          snapshot.docs.length > 0
+            ? snapshot.docs[snapshot.docs.length - 1]
+            : null;
+
+        return { users, lastDoc };
+      }
     } else {
       if (startAfterDoc) {
         usersQuery = query(
@@ -95,6 +137,21 @@ export const getUsers = async (
   } catch (error) {
     console.error("Error getting users:", error);
     return { users: [], lastDoc: null };
+  }
+};
+
+/**
+ * Get the total count of users in the system
+ * @returns Promise with the total number of users
+ */
+export const getTotalUserCount = async (): Promise<number> => {
+  try {
+    const usersRef = collection(db, "users");
+    const snapshot = await getDocs(usersRef);
+    return snapshot.size;
+  } catch (error) {
+    console.error("Error getting total user count:", error);
+    return 0;
   }
 };
 

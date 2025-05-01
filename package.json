@@ -22,6 +22,7 @@
     "express": "^4.21.2",
     "firebase": "^11.6.0",
     "git-filter-repo": "^0.0.30",
+    "html2canvas": "^1.4.1",
     "jsdom": "^25.0.1",
     "localforage": "^1.10.0",
     "moment": "^2.30.1",

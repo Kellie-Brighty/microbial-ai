@@ -357,11 +357,48 @@ export const updateConference = async (
   data: Partial<Conference>
 ): Promise<void> => {
   try {
+    // First, get the current conference to check if it's live
     const conferenceRef = doc(db, "conferences", conferenceId);
-    await updateDoc(conferenceRef, {
-      ...data,
+    const conferenceSnap = await getDoc(conferenceRef);
+
+    if (!conferenceSnap.exists()) {
+      throw new Error("Conference not found");
+    }
+
+    const conference = conferenceSnap.data() as Conference;
+    const isLive = conference.status === "live";
+
+    // Create a safe update object
+    const safeUpdate: Record<string, any> = {
       updatedAt: serverTimestamp(),
-    });
+    };
+
+    // If the conference is live, only allow updating specific fields
+    if (isLive) {
+      // Only allow updating youtubeUrl when live
+      if (data.youtubeUrl !== undefined) {
+        safeUpdate.youtubeUrl = data.youtubeUrl;
+      }
+
+      // Explicitly prevent updating other fields
+      if (
+        Object.keys(data).length > 1 ||
+        (Object.keys(data).length === 1 && data.youtubeUrl === undefined)
+      ) {
+        debug(
+          "Firebase",
+          "Warning: Attempting to update restricted fields for a live conference"
+        );
+      }
+    } else {
+      // If not live, allow updating all provided fields
+      Object.entries(data).forEach(([key, value]) => {
+        safeUpdate[key] = value;
+      });
+    }
+
+    // Update the document with the safe update object
+    await updateDoc(conferenceRef, safeUpdate);
     debug("Firebase", "Conference updated successfully");
   } catch (error) {
     console.error("Error updating conference:", error);

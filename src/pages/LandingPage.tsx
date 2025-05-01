@@ -389,8 +389,8 @@ const LandingPage: React.FC = () => {
               </div>
               <div className="hidden md:block">
                 <img
-                  src="https://placehold.co/600x400/e7f7f5/112211?text=Conference+Image"
-                  alt="Virtual Conference"
+                  src="/src/assets/conference-illustration.svg"
+                  alt="Conference Illustration"
                   className="rounded-lg shadow-lg w-full"
                 />
               </div>

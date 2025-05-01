@@ -23,6 +23,7 @@ import ModerationPage from "./pages/admin/ModerationPage";
 import AdminRoutes from "./routes/AdminRoutes";
 import CreditsPage from "./pages/CreditsPage";
 import RegistrationVerificationPage from "./pages/conferences/RegistrationVerificationPage";
+import QRCodeGeneratorPage from "./pages/QRCodeGeneratorPage";
 
 // Initialize debugging
 initDebugging();
@@ -168,6 +169,9 @@ try {
                   path="/verify-registration/:conferenceId/:registrationId"
                   element={<RegistrationVerificationPage />}
                 />
+
+                {/* QR Code Generator */}
+                <Route path="/qr-generator" element={<QRCodeGeneratorPage />} />
 
                 {/* Admin Routes */}
                 <Route path="/admin/moderation" element={<ModerationPage />} />
