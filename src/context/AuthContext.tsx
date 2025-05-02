@@ -9,7 +9,7 @@ import {
   User,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signOut,
+  signOut as firebaseSignOut,
   onAuthStateChanged,
   updateProfile,
 } from "firebase/auth";
@@ -18,6 +18,7 @@ import {
   createUserProfile,
   getUserProfile,
   updateUserProfile as firebaseUpdateUserProfile,
+  sendEmailVerification,
 } from "../utils/firebase";
 import { DEFAULT_NEW_USER_CREDITS } from "../utils/creditsSystem";
 
@@ -35,182 +36,181 @@ interface AuthContextProps {
   currentUser: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
+  emailVerified: boolean;
+  checkEmailVerification: () => Promise<boolean>;
   signUp: (
     email: string,
     password: string,
     displayName: string
-  ) => Promise<User | null>;
-  signIn: (email: string, password: string) => Promise<User | null>;
-  logOut: () => Promise<void>;
-  updateUserProfile: (data: Partial<UserProfile>) => Promise<boolean>;
+  ) => Promise<User>;
+  signIn: (email: string, password: string) => Promise<User>;
+  signOut: () => Promise<void>;
+  updateUserProfile: (data: Record<string, any>) => Promise<boolean>;
+  isEmailVerified: () => boolean;
+  sendVerificationEmail: (redirectUrl?: string) => Promise<boolean>;
 }
 
-// Create a default context value to prevent the "must be used within a Provider" error
-const defaultContextValue: AuthContextProps = {
-  currentUser: null,
-  userProfile: null,
-  loading: true,
-  signUp: async () => null,
-  signIn: async () => null,
-  logOut: async () => {},
-  updateUserProfile: async () => false,
-};
-
-const AuthContext = createContext<AuthContextProps>(defaultContextValue);
+const AuthContext = createContext<AuthContextProps | null>(null);
 
 export const useAuth = (): AuthContextProps => {
   const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [authInitialized, setAuthInitialized] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
 
+  // Listen for auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+
+      if (user) {
+        try {
+          // Check if email is verified
+          setEmailVerified(user.emailVerified);
+
+          // Get user profile from Firestore
+          const profile = await getUserProfile(user.uid);
+          setUserProfile(profile);
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+        }
+      } else {
+        setUserProfile(null);
+        setEmailVerified(false);
+      }
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Function to check if email is verified (refreshes user)
+  const checkEmailVerification = async (): Promise<boolean> => {
+    if (currentUser) {
+      try {
+        // Force refresh user to get latest emailVerified status
+        await currentUser.reload();
+        const updatedUser = auth.currentUser;
+
+        if (updatedUser?.emailVerified) {
+          setEmailVerified(true);
+          return true;
+        }
+      } catch (error) {
+        console.error("Error checking email verification:", error);
+      }
+    }
+    return false;
+  };
+
+  // Sign up function
   const signUp = async (
     email: string,
     password: string,
     displayName: string
-  ): Promise<User | null> => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+  ): Promise<User> => {
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+    const user = userCredential.user;
 
-      // Update the user's display name
-      if (userCredential.user) {
-        await updateProfile(userCredential.user, { displayName });
+    // Update display name
+    await updateProfile(user, { displayName });
 
-        // Create user profile in Firestore
-        await createUserProfile(userCredential.user, {
-          displayName,
-          interests: [],
-          preferredTopics: [],
-          createdAt: new Date(),
-          // Initialize with default credits
-          credits: DEFAULT_NEW_USER_CREDITS,
-          creditHistory: [
-            {
-              amount: DEFAULT_NEW_USER_CREDITS,
-              type: "welcome_bonus",
-              description: "Welcome bonus credits",
-              timestamp: new Date().toISOString(),
-            },
-          ],
-        });
+    // Create user profile in Firestore
+    await createUserProfile(user, {
+      displayName,
+      lastLogin: new Date(),
+      credits: DEFAULT_NEW_USER_CREDITS,
+    });
 
-        console.log(
-          `New user registered with ${DEFAULT_NEW_USER_CREDITS} initial credits`
-        );
+    // Send verification email
+    await sendEmailVerification();
 
-        return userCredential.user;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error signing up:", error);
-      return null;
-    }
+    return user;
   };
 
-  const signIn = async (
-    email: string,
-    password: string
-  ): Promise<User | null> => {
-    try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      return userCredential.user;
-    } catch (error) {
-      console.error("Error signing in:", error);
-      return null;
-    }
+  // Sign in function
+  const signIn = async (email: string, password: string): Promise<User> => {
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+    const user = userCredential.user;
+
+    // Update last login in Firestore
+    await firebaseUpdateUserProfile(user.uid, {
+      lastLogin: new Date(),
+    });
+
+    return user;
   };
 
-  const logOut = async (): Promise<void> => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
+  // Sign out function
+  const signOut = async (): Promise<void> => {
+    await firebaseSignOut(auth);
   };
 
-  const updateUserProfileData = async (
-    data: Partial<UserProfile>
+  // Check if email is verified
+  const isEmailVerified = (): boolean => {
+    return currentUser?.emailVerified || false;
+  };
+
+  // Send verification email
+  const sendVerificationEmail = async (
+    redirectUrl?: string
   ): Promise<boolean> => {
-    try {
-      if (currentUser) {
-        await firebaseUpdateUserProfile(currentUser.uid, {
-          ...data,
-          updatedAt: new Date(),
-        });
+    return await sendEmailVerification(redirectUrl);
+  };
 
-        // Update local state
-        setUserProfile((prev) => (prev ? { ...prev, ...data } : null));
-        return true;
-      }
-      return false;
+  // Update user profile
+  const updateUserProfile = async (
+    data: Record<string, any>
+  ): Promise<boolean> => {
+    if (!currentUser) return false;
+
+    try {
+      await firebaseUpdateUserProfile(currentUser.uid, data);
+      // Update local state
+      const updatedProfile = await getUserProfile(currentUser.uid);
+      setUserProfile(updatedProfile);
+      return true;
     } catch (error) {
       console.error("Error updating user profile:", error);
       return false;
     }
   };
 
-  useEffect(() => {
-    console.log("Setting up auth state listener");
-
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log("Auth state changed:", user ? `User ${user.uid}` : "No user");
-      setCurrentUser(user);
-
-      try {
-        if (user) {
-          // Fetch user profile from Firestore
-          const profile = await getUserProfile(user.uid);
-          setUserProfile(profile as UserProfile);
-
-          // Update last login time
-          await firebaseUpdateUserProfile(user.uid, { lastLogin: new Date() });
-        } else {
-          setUserProfile(null);
-        }
-      } catch (error) {
-        console.error("Error in auth state change handler:", error);
-      } finally {
-        setLoading(false);
-        setAuthInitialized(true);
-      }
-    });
-
-    return unsubscribe;
-  }, []);
-
-  const value = {
+  const value: AuthContextProps = {
     currentUser,
     userProfile,
     loading,
+    emailVerified,
+    checkEmailVerification,
     signUp,
     signIn,
-    logOut,
-    updateUserProfile: updateUserProfileData,
+    signOut,
+    updateUserProfile,
+    isEmailVerified,
+    sendVerificationEmail,
   };
-
-  // Use a loading indicator or return null while authentication is initializing
-  if (!authInitialized) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-mint border-solid"></div>
-      </div>
-    );
-  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+export default AuthContext;

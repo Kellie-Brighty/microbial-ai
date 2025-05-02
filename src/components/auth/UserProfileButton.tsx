@@ -17,7 +17,7 @@ interface UserProfileButtonProps {
 const UserProfileButton: React.FC<UserProfileButtonProps> = ({
   onOpenSettings,
 }) => {
-  const { currentUser, logOut } = useAuth();
+  const { currentUser, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -47,7 +47,7 @@ const UserProfileButton: React.FC<UserProfileButtonProps> = ({
 
   const handleSignOut = async () => {
     try {
-      await logOut();
+      await signOut();
       setIsOpen(false);
     } catch (error) {
       console.error("Error signing out:", error);

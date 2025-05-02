@@ -24,6 +24,7 @@ import AdminRoutes from "./routes/AdminRoutes";
 import CreditsPage from "./pages/CreditsPage";
 import RegistrationVerificationPage from "./pages/conferences/RegistrationVerificationPage";
 import QRCodeGeneratorPage from "./pages/QRCodeGeneratorPage";
+import VerificationConfirmPage from "./pages/auth/VerificationConfirmPage";
 
 // Initialize debugging
 initDebugging();
@@ -168,6 +169,12 @@ try {
                 <Route
                   path="/verify-registration/:conferenceId/:registrationId"
                   element={<RegistrationVerificationPage />}
+                />
+
+                {/* Email Verification Confirmation Route */}
+                <Route
+                  path="/auth/verify-email"
+                  element={<VerificationConfirmPage />}
                 />
 
                 {/* QR Code Generator */}

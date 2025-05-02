@@ -4,3 +4,5 @@ export { default as SignUp } from "./SignUp";
 export { default as UserProfileButton } from "./UserProfileButton";
 export { default as ProfilePage } from "./ProfilePage";
 export { default as SettingsPage } from "./SettingsPage";
+export { default as EmailVerification } from "./EmailVerification";
+export { default as VerificationGuard } from "./VerificationGuard";

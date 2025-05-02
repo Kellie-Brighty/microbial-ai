@@ -15,6 +15,7 @@ import {
   FaCog,
   FaMicrochip,
   FaFlask,
+  FaEnvelope,
 } from "react-icons/fa";
 import { GiDna1 } from "react-icons/gi";
 import { useAuth } from "./context/AuthContext";
@@ -33,6 +34,7 @@ import {
   recordUserActivity,
   ActivityType,
 } from "./utils/activityTracking";
+import { VerificationGuard } from "./components/auth";
 
 export interface MessageContent {
   text: {
@@ -596,36 +598,86 @@ export default function App() {
         </button>
 
         {/* Vision Analysis Button - Fixed position */}
-        <button
-          onClick={() =>
-            currentUser ? setVisionModalOpen(true) : setAuthModalOpen(true)
-          }
-          className="fixed top-4 right-4 md:right-24 z-50 bg-gradient-to-r from-mint to-purple text-white p-2 rounded-full hover:opacity-90 transition-all shadow-md flex items-center space-x-1"
-          title={
-            currentUser ? "Try Image Analysis" : "Sign in to use Image Analysis"
+        <VerificationGuard
+          fallback={
+            currentUser ? (
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                className="fixed top-4 right-4 md:right-24 z-50 bg-gradient-to-r from-mint to-purple text-white p-2 rounded-full hover:opacity-90 transition-all shadow-md flex items-center space-x-1 opacity-70"
+                title="Email verification required for Image Analysis"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5"
+                >
+                  <path d="M6 18h8" />
+                  <path d="M3 22h18" />
+                  <path d="M14 22a7 7 0 1 0 0-14h-1" />
+                  <path d="M9 14h2" />
+                  <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2" />
+                  <path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
+                </svg>
+                <span className="text-xs hidden md:block">Verify Email</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                className="fixed top-4 right-4 md:right-24 z-50 bg-gradient-to-r from-mint to-purple text-white p-2 rounded-full hover:opacity-90 transition-all shadow-md flex items-center space-x-1"
+                title="Sign in to use Image Analysis"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5"
+                >
+                  <path d="M6 18h8" />
+                  <path d="M3 22h18" />
+                  <path d="M14 22a7 7 0 1 0 0-14h-1" />
+                  <path d="M9 14h2" />
+                  <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2" />
+                  <path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
+                </svg>
+                <span className="text-xs hidden md:block">Sign in</span>
+              </button>
+            )
           }
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-5 w-5"
+          <button
+            onClick={() => setVisionModalOpen(true)}
+            className="fixed top-4 right-4 md:right-24 z-50 bg-gradient-to-r from-mint to-purple text-white p-2 rounded-full hover:opacity-90 transition-all shadow-md flex items-center space-x-1"
+            title="Try Image Analysis"
           >
-            <path d="M6 18h8" />
-            <path d="M3 22h18" />
-            <path d="M14 22a7 7 0 1 0 0-14h-1" />
-            <path d="M9 14h2" />
-            <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2" />
-            <path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
-          </svg>
-          <span className="text-xs hidden md:block">
-            {currentUser ? "Image Analysis" : "Sign in"}
-          </span>
-        </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+            >
+              <path d="M6 18h8" />
+              <path d="M3 22h18" />
+              <path d="M14 22a7 7 0 1 0 0-14h-1" />
+              <path d="M9 14h2" />
+              <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2" />
+              <path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
+            </svg>
+            <span className="text-xs hidden md:block">Image Analysis</span>
+          </button>
+        </VerificationGuard>
 
         {/* Left Sidebar for Threads */}
         <div
@@ -656,22 +708,54 @@ export default function App() {
         {/* Main Chat Section - Make it flex-1 and overflow-hidden to contain the chat content */}
         <div className="flex-1 flex flex-col h-screen overflow-hidden">
           {currentUser ? (
-            <ChatContent
-              messages={messages}
-              threadLoading={threadLoading}
-              setCreatThreadModal={setCreatThreadModal}
-              setMessages={setMessages}
-              input={input}
-              setInput={setInput}
-              threadId={threadId}
-              client={client}
-              userPersonalization={userPersonalization}
-              addUserContextToMessages={addUserContextToMessages}
-              currentUser={currentUser}
-              setProfileOpen={setProfileOpen}
-              setAuthModalOpen={setAuthModalOpen}
-              setSettingsOpen={setSettingsOpen}
-            />
+            <VerificationGuard
+              fallback={
+                <div className="flex-1 flex flex-col items-center justify-center bg-white p-6">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-8 shadow-md max-w-lg text-center">
+                    <div className="flex justify-center mb-4">
+                      <div className="p-3 bg-yellow-100 rounded-full text-yellow-700">
+                        <FaEnvelope size={30} />
+                      </div>
+                    </div>
+                    <h2 className="text-xl font-bold text-yellow-800 mb-3">
+                      Email Verification Required
+                    </h2>
+                    <p className="text-yellow-700 mb-4">
+                      To protect our users and maintain quality, you need to
+                      verify your email address before you can chat with
+                      Microbial AI or use our image analysis tools.
+                    </p>
+                    <p className="text-yellow-600 text-sm mb-6">
+                      A verification link has been sent to:{" "}
+                      <strong>{currentUser.email}</strong>
+                    </p>
+                    <button
+                      onClick={() => setAuthModalOpen(true)}
+                      className="bg-yellow-600 text-white px-5 py-2 rounded-lg hover:bg-yellow-700 transition-colors"
+                    >
+                      Verify Email Now
+                    </button>
+                  </div>
+                </div>
+              }
+            >
+              <ChatContent
+                messages={messages}
+                threadLoading={threadLoading}
+                setCreatThreadModal={setCreatThreadModal}
+                setMessages={setMessages}
+                input={input}
+                setInput={setInput}
+                threadId={threadId}
+                client={client}
+                userPersonalization={userPersonalization}
+                addUserContextToMessages={addUserContextToMessages}
+                currentUser={currentUser}
+                setProfileOpen={setProfileOpen}
+                setAuthModalOpen={setAuthModalOpen}
+                setSettingsOpen={setSettingsOpen}
+              />
+            </VerificationGuard>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center bg-white p-6">
               <div className="bg-offWhite rounded-2xl p-8 shadow-sm max-w-md text-center">

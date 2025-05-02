@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { GiDna1 } from "react-icons/gi";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaEye, FaEyeSlash, FaExclamationTriangle } from "react-icons/fa";
 
 interface LoginProps {
   onToggleForm: () => void;
@@ -10,16 +10,23 @@ interface LoginProps {
     message: string,
     setLoading?: React.Dispatch<React.SetStateAction<boolean>>
   ) => void;
+  onSwitchToVerification?: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onToggleForm, onClose, onSuccess }) => {
+const Login: React.FC<LoginProps> = ({
+  onToggleForm,
+  onClose,
+  onSuccess,
+  onSwitchToVerification,
+}) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
 
-  const { signIn } = useAuth();
+  const { signIn, sendVerificationEmail } = useAuth();
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
@@ -36,11 +43,20 @@ const Login: React.FC<LoginProps> = ({ onToggleForm, onClose, onSuccess }) => {
     try {
       setError("");
       setLoading(true);
+      setNeedsVerification(false);
       const user = await signIn(email, password);
 
       if (!user) {
         setError("Failed to sign in. Please check your credentials.");
       } else {
+        // Check if email is verified
+        if (!user.emailVerified) {
+          setNeedsVerification(true);
+          setError("");
+          setLoading(false);
+          return;
+        }
+
         onSuccess(
           `Welcome back, ${user.displayName || user.email}!`,
           setLoading
@@ -49,6 +65,33 @@ const Login: React.FC<LoginProps> = ({ onToggleForm, onClose, onSuccess }) => {
       }
     } catch (error) {
       setError("Failed to sign in. Please try again.");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setLoading(true);
+    try {
+      const success = await sendVerificationEmail();
+      if (success) {
+        setError("");
+        setNeedsVerification(false);
+        onSuccess(
+          "Verification email sent! Please check your inbox.",
+          setLoading
+        );
+
+        // If there's a function to switch to verification view, call it
+        if (onSwitchToVerification) {
+          onSwitchToVerification();
+        }
+      } else {
+        setError("Failed to send verification email. Please try again.");
+      }
+    } catch (error) {
+      setError("An error occurred while sending verification email.");
       console.error(error);
     } finally {
       setLoading(false);
@@ -70,6 +113,37 @@ const Login: React.FC<LoginProps> = ({ onToggleForm, onClose, onSuccess }) => {
       {error && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-md mb-4 text-sm">
           {error}
+        </div>
+      )}
+
+      {needsVerification && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md mb-4">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <FaExclamationTriangle className="h-5 w-5 text-yellow-500" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium">
+                Email verification required
+              </h3>
+              <div className="mt-2 text-sm">
+                <p>
+                  Your email address has not been verified yet. Please check
+                  your inbox for a verification link.
+                </p>
+              </div>
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={loading}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1 rounded-md transition-colors"
+                >
+                  {loading ? "Sending..." : "Resend verification email"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

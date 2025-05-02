@@ -5,7 +5,7 @@ import { fileToDataURL } from "../utils/visionUtils";
 import OpenAI from "openai";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "../context/AuthContext";
-import { FaSignInAlt } from "react-icons/fa";
+import { FaSignInAlt, FaEnvelope } from "react-icons/fa";
 import {
   hasEnoughCredits,
   deductCredits,
@@ -25,7 +25,7 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
   onClose,
   client,
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, emailVerified } = useAuth();
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
@@ -34,6 +34,7 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showResultsOnMobile, setShowResultsOnMobile] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [showVerificationPrompt, setShowVerificationPrompt] = useState(false);
   const [credits, setCredits] = useState<number | null>(null);
   const [insufficientCredits, setInsufficientCredits] = useState(false);
 
@@ -105,12 +106,19 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
 
   // Check if user is authenticated
   React.useEffect(() => {
-    if (isOpen && !currentUser) {
-      setShowAuthPrompt(true);
-    } else {
-      setShowAuthPrompt(false);
+    if (isOpen) {
+      if (!currentUser) {
+        setShowAuthPrompt(true);
+        setShowVerificationPrompt(false);
+      } else if (!emailVerified) {
+        setShowAuthPrompt(false);
+        setShowVerificationPrompt(true);
+      } else {
+        setShowAuthPrompt(false);
+        setShowVerificationPrompt(false);
+      }
     }
-  }, [isOpen, currentUser]);
+  }, [isOpen, currentUser, emailVerified]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -142,6 +150,12 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
 
   const analyzeImage = async () => {
     if (!selectedImage) return;
+
+    // Check if email is verified
+    if (!emailVerified) {
+      setShowVerificationPrompt(true);
+      return;
+    }
 
     // Check if user has enough credits
     if (currentUser) {
@@ -198,28 +212,30 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
   if (showAuthPrompt) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 text-center">
-          <div className="bg-mint text-white p-3 rounded-full mx-auto mb-4 w-16 h-16 flex items-center justify-center">
-            <FaSignInAlt size={28} />
-          </div>
-          <h2 className="text-xl font-bold text-charcoal mb-3">
-            Authentication Required
-          </h2>
-          <p className="text-gray-600 mb-6">
-            Please sign in to access the image analysis feature.
-          </p>
-          <div className="flex space-x-3 justify-center">
+        <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+          <div className="flex justify-end">
             <button
               onClick={onClose}
-              className="px-5 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
+              className="text-gray-400 hover:text-gray-600"
             >
-              Cancel
+              <IoClose size={24} />
             </button>
+          </div>
+          <div className="text-center py-4">
+            <div className="mx-auto w-16 h-16 bg-mint rounded-full flex items-center justify-center text-white mb-4">
+              <FaSignInAlt size={24} />
+            </div>
+            <h2 className="text-xl font-bold text-charcoal mb-2">
+              Sign In Required
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Please sign in to use the image analysis feature.
+            </p>
             <button
               onClick={onClose}
-              className="px-5 py-2 bg-mint text-white rounded-full hover:bg-purple transition-colors"
+              className="bg-mint text-white px-4 py-2 rounded-lg hover:bg-purple transition-colors"
             >
-              Sign In
+              Go to Sign In
             </button>
           </div>
         </div>
@@ -227,11 +243,51 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
     );
   }
 
-  // Show insufficient credits prompt
-  if (insufficientCredits && currentUser) {
+  // Show verification prompt if email is not verified
+  if (showVerificationPrompt) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+          <div className="flex justify-end">
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <IoClose size={24} />
+            </button>
+          </div>
+          <div className="text-center py-4">
+            <div className="mx-auto w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center text-white mb-4">
+              <FaEnvelope size={24} />
+            </div>
+            <h2 className="text-xl font-bold text-yellow-800 mb-2">
+              Email Verification Required
+            </h2>
+            <p className="text-gray-600 mb-4">
+              You need to verify your email address before you can use the image
+              analysis feature.
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              A verification link has been sent to{" "}
+              <strong>{currentUser?.email}</strong>
+            </p>
+            <button
+              onClick={onClose}
+              className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors"
+            >
+              Go to Verification
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show credit warning modal if insufficient credits
+  if (insufficientCredits) {
     return (
       <CreditWarningModal
-        isOpen={insufficientCredits}
+        isOpen={true}
         onClose={() => {
           setInsufficientCredits(false);
           onClose();

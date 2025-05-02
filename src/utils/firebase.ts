@@ -25,14 +25,11 @@ import {
   signOut as firebaseSignOut,
   signInWithEmailAndPassword as firebaseSignIn,
   createUserWithEmailAndPassword as firebaseCreateUser,
+  sendEmailVerification as firebaseSendEmailVerification,
+  applyActionCode as firebaseApplyActionCode,
+  ActionCodeSettings,
 } from "firebase/auth";
-import {
-  getStorage,
-  ref,
-  uploadBytes,
-  getDownloadURL,
-  type FirebaseStorage,
-} from "firebase/storage";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { debug } from "./debugging";
 
 // Your web app's Firebase configuration
@@ -111,6 +108,31 @@ export const createUserWithEmailAndPassword = firebaseCreateUser;
 export const signInWithEmailAndPassword = firebaseSignIn;
 export const signOut = firebaseSignOut;
 export const onAuthStateChanged = firebaseOnAuthStateChanged;
+
+// Send email verification with custom redirect URL
+export const sendEmailVerification = async (
+  redirectUrl?: string
+): Promise<boolean> => {
+  if (!auth.currentUser) return false;
+
+  try {
+    const actionCodeSettings: ActionCodeSettings = {
+      // URL you want to redirect back to after email verification
+      url: redirectUrl || `${window.location.origin}/auth/verify-email`,
+      handleCodeInApp: true,
+    };
+
+    await firebaseSendEmailVerification(auth.currentUser, actionCodeSettings);
+    return true;
+  } catch (error) {
+    console.error("Error sending verification email:", error);
+    return false;
+  }
+};
+
+// Apply action code (for email verification)
+export const applyActionCode = (auth: Auth, code: string) =>
+  firebaseApplyActionCode(auth, code);
 
 // Create a user profile in Firestore
 export const createUserProfile = async (
@@ -228,7 +250,1031 @@ export interface ConferenceRegistration {
   certificateId?: string;
 }
 
-// Helper function to convert date objects to Firestore timestamps
+// Get all live conferences
+export const getLiveConferences = async (): Promise<Conference[]> => {
+  try {
+    const now = Timestamp.now();
+    console.log("Fetching live conferences. Current time:", now.toDate());
+
+    const conferencesRef = collection(db, "conferences");
+
+    // For debugging - get all conferences without filtering
+    const simpleQuery = query(conferencesRef);
+    const simpleSnapshot = await getDocs(simpleQuery);
+    console.log(
+      `Found ${simpleSnapshot.size} total conferences to include as live`
+    );
+
+    // Create a map to track unique conferences
+    const conferenceMap = new Map<string, Conference>();
+
+    // Process all conferences, but only add each one once to prevent duplication
+    simpleSnapshot.forEach((doc) => {
+      const data = doc.data();
+
+      // Check if conference is marked as live
+      const hasLiveStatus = data.status === "live";
+
+      // Check if conference time is valid (should have started but not ended)
+      let isActuallyLive = true;
+      if (data.startTime?.seconds && data.endTime?.seconds) {
+        const startTimeDate = new Date(data.startTime.seconds * 1000);
+        const endTimeDate = new Date(data.endTime.seconds * 1000);
+        const currentTime = now.toDate();
+        isActuallyLive =
+          startTimeDate <= currentTime && endTimeDate >= currentTime;
+      }
+
+      // Only include if it's a live conference
+      if (hasLiveStatus || isActuallyLive) {
+        // If we haven't added this conference yet, add it
+        if (!conferenceMap.has(doc.id)) {
+          const conference = {
+            id: doc.id,
+            ...data,
+          } as Conference;
+          conferenceMap.set(doc.id, conference);
+          console.log(
+            `Including live conference: ${doc.id}, title: ${
+              data.title || "No title"
+            }`
+          );
+        }
+      }
+    });
+
+    // Return the unique list of conferences
+    return Array.from(conferenceMap.values());
+  } catch (error) {
+    console.error("Error getting live conferences:", error);
+    return [];
+  }
+};
+
+// Get all upcoming conferences
+export const getUpcomingConferences = async (): Promise<Conference[]> => {
+  try {
+    const now = Timestamp.now();
+    console.log("Fetching upcoming conferences. Current time:", now.toDate());
+    const conferencesRef = collection(db, "conferences");
+
+    // First, try to get all conferences without filtering to debug
+    const allConferencesQuery = query(conferencesRef);
+    const allConferencesSnapshot = await getDocs(allConferencesQuery);
+
+    console.log(
+      `Found ${allConferencesSnapshot.size} total conferences in database`
+    );
+
+    // Create a map to track unique conferences
+    const conferenceMap = new Map<string, Conference>();
+
+    // Process all conferences, but only add each one once to prevent duplication
+    allConferencesSnapshot.forEach((doc) => {
+      const data = doc.data();
+
+      // Check if conference is marked as upcoming or has a future start time
+      const hasUpcomingStatus = data.status === "upcoming";
+      let isUpcoming = true;
+
+      if (data.startTime?.seconds) {
+        const startTimeDate = new Date(data.startTime.seconds * 1000);
+        isUpcoming = startTimeDate > now.toDate();
+      }
+
+      // Only include if it's an upcoming conference (by status or future date)
+      if (hasUpcomingStatus || isUpcoming) {
+        // If we haven't added this conference yet, add it
+        if (!conferenceMap.has(doc.id)) {
+          const conference = {
+            id: doc.id,
+            ...data,
+          } as Conference;
+          conferenceMap.set(doc.id, conference);
+          console.log(
+            `Including upcoming conference: ${doc.id}, title: ${
+              data.title || "No title"
+            }`
+          );
+        }
+      }
+    });
+
+    // Return the unique list of conferences
+    return Array.from(conferenceMap.values());
+  } catch (error) {
+    console.error("Error getting upcoming conferences:", error);
+    return [];
+  }
+};
+
+// Get past conferences (for archives)
+export const getPastConferences = async (
+  limitCount = 10
+): Promise<Conference[]> => {
+  try {
+    console.log(`Fetching past conferences, limit: ${limitCount}`);
+    const conferencesRef = collection(db, "conferences");
+    const now = Timestamp.now();
+
+    // For debugging - get all conferences without filtering
+    const simpleQuery = query(conferencesRef);
+    const simpleSnapshot = await getDocs(simpleQuery);
+    console.log(
+      `Found ${simpleSnapshot.size} total conferences for past display`
+    );
+
+    // Create a map to track unique conferences
+    const conferenceMap = new Map<string, Conference>();
+
+    // Process all conferences, but only add each one once to prevent duplication
+    simpleSnapshot.forEach((doc) => {
+      const data = doc.data();
+
+      // Check if conference is marked as ended
+      const isEnded = data.status === "ended";
+
+      // Check if conference's end time is in the past
+      let isPastDate = false;
+      if (data.endTime?.seconds) {
+        const endTimeDate = new Date(data.endTime.seconds * 1000);
+        isPastDate = endTimeDate < now.toDate();
+      } else if (data.startTime?.seconds) {
+        // If no end time, check if start time + 1 hour is in the past
+        const startTimeDate = new Date(data.startTime.seconds * 1000);
+        const estimatedEndTime = new Date(
+          startTimeDate.getTime() + 60 * 60 * 1000
+        );
+        isPastDate = estimatedEndTime < now.toDate();
+      }
+
+      // Only include if it's a past conference
+      if (isEnded || isPastDate) {
+        // If we haven't added this conference yet, add it
+        if (!conferenceMap.has(doc.id)) {
+          const conference = {
+            id: doc.id,
+            ...data,
+          } as Conference;
+          conferenceMap.set(doc.id, conference);
+          console.log(
+            `Including past conference: ${doc.id}, title: ${
+              data.title || "No title"
+            }`
+          );
+        }
+      }
+    });
+
+    // Get all values from the map as an array
+    const conferences = Array.from(conferenceMap.values());
+
+    // Sort by start time (newest to oldest)
+    conferences.sort((a, b) => {
+      const aTime = a.startTime?.seconds || 0;
+      const bTime = b.startTime?.seconds || 0;
+      return bTime - aTime; // Descending for past conferences
+    });
+
+    // Return the limited number of conferences
+    return conferences.slice(0, limitCount);
+  } catch (error) {
+    console.error("Error getting past conferences:", error);
+    return [];
+  }
+};
+
+// Get a single conference by ID
+export const getConference = async (
+  conferenceId: string
+): Promise<Conference | null> => {
+  try {
+    const conferenceRef = doc(db, "conferences", conferenceId);
+    const conferenceSnap = await getDoc(conferenceRef);
+
+    if (conferenceSnap.exists()) {
+      const data = conferenceSnap.data();
+      return {
+        id: conferenceSnap.id,
+        ...data,
+      } as Conference;
+    } else {
+      console.log("No conference found");
+      return null;
+    }
+  } catch (error) {
+    console.error("Error getting conference:", error);
+    return null;
+  }
+};
+
+// Get all registrations for a conference
+export const getConferenceRegistrations = async (
+  conferenceId: string
+): Promise<ConferenceRegistration[]> => {
+  try {
+    const registrationsRef = collection(db, "conferenceRegistrations");
+    const q = query(
+      registrationsRef,
+      where("conferenceId", "==", conferenceId)
+    );
+    const querySnapshot = await getDocs(q);
+
+    const registrations: ConferenceRegistration[] = [];
+    querySnapshot.forEach((doc) => {
+      registrations.push({
+        id: doc.id,
+        ...doc.data(),
+      } as ConferenceRegistration);
+    });
+
+    return registrations;
+  } catch (error) {
+    console.error("Error getting conference registrations:", error);
+    return [];
+  }
+};
+
+// Certificate interfaces
+export interface Certificate {
+  id: string;
+  conferenceId: string;
+  registrationId: string;
+  userId: string;
+  recipientName: string;
+  conferenceName: string;
+  conferenceDate: string;
+  issueDate: any; // Timestamp
+  certificateUrl?: string;
+  issuedBy: string;
+  issuedById: string;
+}
+
+// Get all certificates for a conference
+export const getConferenceCertificates = async (
+  conferenceId: string
+): Promise<Certificate[]> => {
+  try {
+    const certificatesRef = collection(db, "certificates");
+    const q = query(certificatesRef, where("conferenceId", "==", conferenceId));
+
+    const querySnapshot = await getDocs(q);
+
+    const certificates: Certificate[] = [];
+    querySnapshot.forEach((doc) => {
+      certificates.push({
+        id: doc.id,
+        ...doc.data(),
+      } as Certificate);
+    });
+
+    return certificates;
+  } catch (error) {
+    console.error("Error getting conference certificates:", error);
+    return [];
+  }
+};
+
+// Issue a certificate for a conference registration
+export const issueCertificate = async (
+  conferenceId: string,
+  registrationId: string,
+  userData: { userId: string; recipientName: string },
+  issuerData: { issuedBy: string; issuedById: string }
+): Promise<Certificate | null> => {
+  try {
+    // Get conference details
+    const conference = await getConference(conferenceId);
+    if (!conference) {
+      throw new Error("Conference not found");
+    }
+
+    // Check if certificate already exists
+    const existingCertificate = await getCertificateByRegistration(
+      registrationId
+    );
+    if (existingCertificate) {
+      return existingCertificate; // Return existing certificate instead of creating a new one
+    }
+
+    // Create certificate data
+    const conferenceDate = conference.startTime
+      ? new Date(conference.startTime.seconds * 1000).toLocaleDateString(
+          "en-US",
+          {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }
+        )
+      : "Unknown Date";
+
+    const certificateData: Omit<Certificate, "id"> = {
+      conferenceId,
+      registrationId,
+      userId: userData.userId,
+      recipientName: userData.recipientName,
+      conferenceName: conference.title,
+      conferenceDate,
+      issueDate: serverTimestamp(),
+      issuedBy: issuerData.issuedBy,
+      issuedById: issuerData.issuedById,
+    };
+
+    // Add to certificates collection
+    const certificatesRef = collection(db, "certificates");
+    const docRef = await addDoc(certificatesRef, certificateData);
+
+    // Update registration to mark certificate as issued
+    const registrationRef = doc(db, "conferenceRegistrations", registrationId);
+    await updateDoc(registrationRef, {
+      certificateIssued: true,
+      certificateId: docRef.id,
+      updatedAt: serverTimestamp(),
+    });
+
+    // Return the certificate with its ID
+    return {
+      id: docRef.id,
+      ...certificateData,
+      issueDate: Timestamp.now(), // Use current timestamp for immediate UI display
+    };
+  } catch (error) {
+    console.error("Error issuing certificate:", error);
+    return null;
+  }
+};
+
+// Get a certificate by registration ID
+export const getCertificateByRegistration = async (
+  registrationId: string
+): Promise<Certificate | null> => {
+  try {
+    const certificatesRef = collection(db, "certificates");
+    const q = query(
+      certificatesRef,
+      where("registrationId", "==", registrationId),
+      limit(1)
+    );
+
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    const doc = querySnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as Certificate;
+  } catch (error) {
+    console.error("Error getting certificate:", error);
+    return null;
+  }
+};
+
+// Get all certificates for a specific user
+export const getUserCertificates = async (
+  userId: string
+): Promise<Certificate[]> => {
+  try {
+    const certificatesRef = collection(db, "certificates");
+    const q = query(certificatesRef, where("userId", "==", userId));
+    const querySnapshot = await getDocs(q);
+
+    const certificates: Certificate[] = [];
+    querySnapshot.forEach((doc) => {
+      certificates.push({
+        id: doc.id,
+        ...doc.data(),
+      } as Certificate);
+    });
+
+    return certificates;
+  } catch (error) {
+    console.error("Error getting user certificates:", error);
+    return [];
+  }
+};
+
+// Batch issue certificates to multiple registrations
+export const batchIssueCertificates = async (
+  conferenceId: string,
+  registrationIds: string[],
+  issuerData: { issuedBy: string; issuedById: string }
+): Promise<{
+  success: number;
+  failed: number;
+  certificates: Certificate[];
+}> => {
+  const results = {
+    success: 0,
+    failed: 0,
+    certificates: [] as Certificate[],
+  };
+
+  // Process registrations in smaller batches to avoid hitting Firestore limits
+  const batchSize = 20;
+  for (let i = 0; i < registrationIds.length; i += batchSize) {
+    const batch = registrationIds.slice(i, i + batchSize);
+
+    // Get registration details for this batch
+    const registrationsData = await Promise.all(
+      batch.map(async (regId) => {
+        try {
+          const regRef = doc(db, "conferenceRegistrations", regId);
+          const regSnap = await getDoc(regRef);
+          if (regSnap.exists() && regSnap.data().attendanceConfirmed) {
+            const regData = regSnap.data() as ConferenceRegistration;
+            // Omit any existing id property from regData to avoid conflict
+            const { id: _, ...regDataWithoutId } = regData;
+            return {
+              id: regSnap.id,
+              ...regDataWithoutId,
+            };
+          }
+          return null;
+        } catch (error) {
+          console.error(`Error fetching registration ${regId}:`, error);
+          return null;
+        }
+      })
+    );
+
+    // Issue certificates for valid registrations
+    const certificatePromises = registrationsData
+      .filter(
+        (reg): reg is ConferenceRegistration & { id: string } =>
+          reg !== null && !reg.certificateIssued
+      )
+      .map(async (reg) => {
+        try {
+          const cert = await issueCertificate(
+            conferenceId,
+            reg.id,
+            {
+              userId: reg.userId,
+              recipientName: reg.fullName,
+            },
+            issuerData
+          );
+
+          if (cert) {
+            results.success++;
+            results.certificates.push(cert);
+          } else {
+            results.failed++;
+          }
+          return cert;
+        } catch (error) {
+          console.error(`Error issuing certificate for ${reg.id}:`, error);
+          results.failed++;
+          return null;
+        }
+      });
+
+    await Promise.all(certificatePromises);
+  }
+
+  return results;
+};
+
+// Quiz interfaces
+export interface QuizQuestion {
+  id: string;
+  text: string;
+  options: string[];
+  correctOptionIndex: number;
+  points: number;
+}
+
+export interface Quiz {
+  id: string;
+  conferenceId: string;
+  title: string;
+  description: string;
+  creatorId: string;
+  creatorName: string;
+  questions: QuizQuestion[];
+  durationMinutes: number;
+  isActive: boolean;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface QuizSubmission {
+  id: string;
+  quizId: string;
+  userId: string;
+  userName: string;
+  conferenceId: string;
+  answers: number[];
+  score: number;
+  maxPossibleScore: number;
+  completedAt: any;
+}
+
+// Get all quizzes for a conference
+export const getConferenceQuizzes = async (
+  conferenceId: string
+): Promise<Quiz[]> => {
+  try {
+    const quizzesRef = collection(db, "quizzes");
+    const q = query(quizzesRef, where("conferenceId", "==", conferenceId));
+    const querySnapshot = await getDocs(q);
+
+    const quizzes: Quiz[] = [];
+    querySnapshot.forEach((doc) => {
+      quizzes.push({
+        id: doc.id,
+        ...doc.data(),
+      } as Quiz);
+    });
+
+    return quizzes;
+  } catch (error) {
+    console.error("Error getting conference quizzes:", error);
+    return [];
+  }
+};
+
+// Check if a user is registered for a conference
+export const isUserRegisteredForConference = async (
+  userId: string,
+  conferenceId: string
+): Promise<boolean> => {
+  try {
+    const registrationsRef = collection(db, "conferenceRegistrations");
+    const q = query(
+      registrationsRef,
+      where("userId", "==", userId),
+      where("conferenceId", "==", conferenceId)
+    );
+
+    const querySnapshot = await getDocs(q);
+    return !querySnapshot.empty;
+  } catch (error) {
+    console.error("Error checking user registration:", error);
+    return false;
+  }
+};
+
+// Get registration details if a user is registered for a conference
+export const getUserRegistrationForConference = async (
+  userId: string,
+  conferenceId: string
+): Promise<ConferenceRegistration | null> => {
+  try {
+    const registrationsRef = collection(db, "conferenceRegistrations");
+    const q = query(
+      registrationsRef,
+      where("userId", "==", userId),
+      where("conferenceId", "==", conferenceId)
+    );
+
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    const doc = querySnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as ConferenceRegistration;
+  } catch (error) {
+    console.error("Error getting user registration details:", error);
+    return null;
+  }
+};
+
+// Get all registrations for a user
+export const getUserConferenceRegistrations = async (
+  userId: string
+): Promise<ConferenceRegistration[]> => {
+  try {
+    const registrationsRef = collection(db, "conferenceRegistrations");
+    const q = query(registrationsRef, where("userId", "==", userId));
+    const querySnapshot = await getDocs(q);
+
+    const registrations: ConferenceRegistration[] = [];
+    querySnapshot.forEach((doc) => {
+      registrations.push({
+        id: doc.id,
+        ...doc.data(),
+      } as ConferenceRegistration);
+    });
+
+    return registrations;
+  } catch (error) {
+    console.error("Error getting user registrations:", error);
+    return [];
+  }
+};
+
+// Update attendance confirmation status
+export const updateRegistrationAttendance = async (
+  registrationId: string,
+  isConfirmed: boolean
+): Promise<boolean> => {
+  try {
+    const registrationRef = doc(db, "conferenceRegistrations", registrationId);
+    await updateDoc(registrationRef, {
+      attendanceConfirmed: isConfirmed,
+      updatedAt: serverTimestamp(),
+    });
+    console.log(
+      `Updated attendance for registration ${registrationId} to ${isConfirmed}`
+    );
+    return true;
+  } catch (error) {
+    console.error("Error updating registration attendance:", error);
+    return false;
+  }
+};
+
+// Update food distribution status
+export const updateRegistrationFoodStatus = async (
+  registrationId: string,
+  isFoodDistributed: boolean
+): Promise<boolean> => {
+  try {
+    const registrationRef = doc(db, "conferenceRegistrations", registrationId);
+    await updateDoc(registrationRef, {
+      foodDistributed: isFoodDistributed,
+      updatedAt: serverTimestamp(),
+    });
+    console.log(
+      `Updated food status for registration ${registrationId} to ${isFoodDistributed}`
+    );
+    return true;
+  } catch (error) {
+    console.error("Error updating registration food status:", error);
+    return false;
+  }
+};
+
+// Get a quiz by ID
+export const getQuiz = async (quizId: string): Promise<Quiz | null> => {
+  try {
+    const quizRef = doc(db, "quizzes", quizId);
+    const quizSnap = await getDoc(quizRef);
+
+    if (quizSnap.exists()) {
+      return {
+        id: quizId,
+        ...quizSnap.data(),
+      } as Quiz;
+    } else {
+      console.log("No quiz found with ID:", quizId);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error getting quiz:", error);
+    return null;
+  }
+};
+
+// Get all submissions for a quiz
+export const getQuizSubmissions = async (
+  quizId: string
+): Promise<QuizSubmission[]> => {
+  try {
+    const submissionsRef = collection(db, "quizSubmissions");
+    const q = query(submissionsRef, where("quizId", "==", quizId));
+    const querySnapshot = await getDocs(q);
+
+    const submissions: QuizSubmission[] = [];
+    querySnapshot.forEach((doc) => {
+      submissions.push({
+        id: doc.id,
+        ...doc.data(),
+      } as QuizSubmission);
+    });
+
+    // Sort by score (highest first)
+    submissions.sort((a, b) => b.score - a.score);
+
+    return submissions;
+  } catch (error) {
+    console.error("Error getting quiz submissions:", error);
+    return [];
+  }
+};
+
+// Get all quiz submissions for a user
+export const getUserQuizSubmissions = async (
+  userId: string
+): Promise<QuizSubmission[]> => {
+  try {
+    const submissionsRef = collection(db, "quizSubmissions");
+    const q = query(submissionsRef, where("userId", "==", userId));
+    const querySnapshot = await getDocs(q);
+
+    const submissions: QuizSubmission[] = [];
+    querySnapshot.forEach((doc) => {
+      submissions.push({
+        id: doc.id,
+        ...doc.data(),
+      } as QuizSubmission);
+    });
+
+    return submissions;
+  } catch (error) {
+    console.error("Error getting user quiz submissions:", error);
+    return [];
+  }
+};
+
+// Get a specific quiz submission for a user
+export const getUserQuizSubmission = async (
+  userId: string,
+  quizId: string
+): Promise<QuizSubmission | null> => {
+  try {
+    const submissionsRef = collection(db, "quizSubmissions");
+    const q = query(
+      submissionsRef,
+      where("userId", "==", userId),
+      where("quizId", "==", quizId),
+      limit(1)
+    );
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    const doc = querySnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as QuizSubmission;
+  } catch (error) {
+    console.error("Error getting user quiz submission:", error);
+    return null;
+  }
+};
+
+// Submit a quiz attempt and score it
+export const submitQuizAttempt = async (
+  quizId: string,
+  userId: string,
+  userName: string,
+  answers: number[]
+): Promise<QuizSubmission | null> => {
+  try {
+    // Check if user already submitted this quiz
+    const existingSubmission = await getUserQuizSubmission(userId, quizId);
+    if (existingSubmission) {
+      throw new Error("You have already submitted this quiz");
+    }
+
+    // Get quiz details to calculate score
+    const quiz = await getQuiz(quizId);
+    if (!quiz) {
+      throw new Error("Quiz not found");
+    }
+
+    // Calculate score
+    let score = 0;
+    let maxPossibleScore = 0;
+
+    quiz.questions.forEach((question, index) => {
+      // Add to max possible score
+      maxPossibleScore += question.points;
+
+      // Add to score if answer is correct
+      if (
+        index < answers.length &&
+        answers[index] === question.correctOptionIndex
+      ) {
+        score += question.points;
+      }
+    });
+
+    // Create submission data
+    const submissionData: Omit<QuizSubmission, "id"> = {
+      quizId,
+      userId,
+      userName,
+      conferenceId: quiz.conferenceId,
+      answers,
+      score,
+      maxPossibleScore,
+      completedAt: serverTimestamp(),
+    };
+
+    // Add to submissions collection
+    const submissionsRef = collection(db, "quizSubmissions");
+    const docRef = await addDoc(submissionsRef, submissionData);
+
+    // Return the submission with its ID
+    return {
+      id: docRef.id,
+      ...submissionData,
+      completedAt: Timestamp.now(), // Use current timestamp for immediate UI display
+    } as QuizSubmission;
+  } catch (error) {
+    console.error("Error submitting quiz attempt:", error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Failed to submit quiz");
+  }
+};
+
+// Create a new quiz for a conference
+export const createQuiz = async (
+  conferenceId: string,
+  creatorId: string,
+  creatorName: string,
+  quizData: {
+    title: string;
+    description: string;
+    durationMinutes: number;
+    isActive: boolean;
+    questions: Omit<QuizQuestion, "id">[];
+  }
+): Promise<string> => {
+  try {
+    // Generate IDs for questions
+    const questionsWithIds = quizData.questions.map((question) => ({
+      ...question,
+      id: crypto.randomUUID(), // Use a unique ID for each question
+    }));
+
+    const quizzesRef = collection(db, "quizzes");
+    const newQuiz = {
+      conferenceId,
+      creatorId,
+      creatorName,
+      title: quizData.title,
+      description: quizData.description,
+      durationMinutes: quizData.durationMinutes,
+      isActive: quizData.isActive,
+      questions: questionsWithIds,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    const docRef = await addDoc(quizzesRef, newQuiz);
+    console.log("Quiz created successfully with ID:", docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error("Error creating quiz:", error);
+    throw error;
+  }
+};
+
+// Update an existing quiz
+export const updateQuiz = async (
+  quizId: string,
+  quizData: Partial<{
+    title: string;
+    description: string;
+    durationMinutes: number;
+    isActive: boolean;
+    questions: QuizQuestion[];
+  }>
+): Promise<void> => {
+  try {
+    const quizRef = doc(db, "quizzes", quizId);
+
+    // Prepare update data
+    const updateData: Record<string, any> = {
+      updatedAt: serverTimestamp(),
+    };
+
+    // Add all provided fields to update data
+    if (quizData.title !== undefined) updateData.title = quizData.title;
+    if (quizData.description !== undefined)
+      updateData.description = quizData.description;
+    if (quizData.durationMinutes !== undefined)
+      updateData.durationMinutes = quizData.durationMinutes;
+    if (quizData.isActive !== undefined)
+      updateData.isActive = quizData.isActive;
+    if (quizData.questions) updateData.questions = quizData.questions;
+
+    await updateDoc(quizRef, updateData);
+    console.log("Quiz updated successfully:", quizId);
+  } catch (error) {
+    console.error("Error updating quiz:", error);
+    throw error;
+  }
+};
+
+// Update conference
+export const updateConference = async (
+  conferenceId: string,
+  data: Partial<Conference>
+): Promise<void> => {
+  try {
+    // First, get the current conference to check if it's live
+    const conferenceRef = doc(db, "conferences", conferenceId);
+    const conferenceSnap = await getDoc(conferenceRef);
+
+    if (!conferenceSnap.exists()) {
+      throw new Error("Conference not found");
+    }
+
+    const conference = conferenceSnap.data() as Conference;
+    const isLive = conference.status === "live";
+
+    // Create a safe update object
+    const safeUpdate: Record<string, any> = {
+      updatedAt: serverTimestamp(),
+    };
+
+    // If the conference is live, only allow updating specific fields
+    if (isLive) {
+      // Only allow updating youtubeUrl when live
+      if (data.youtubeUrl !== undefined) {
+        safeUpdate.youtubeUrl = data.youtubeUrl;
+      }
+
+      // Explicitly prevent updating other fields
+      if (
+        Object.keys(data).length > 1 ||
+        (Object.keys(data).length === 1 && data.youtubeUrl === undefined)
+      ) {
+        debug(
+          "Firebase",
+          "Warning: Attempting to update restricted fields for a live conference"
+        );
+      }
+    } else {
+      // If not live, allow updating all provided fields
+      Object.entries(data).forEach(([key, value]) => {
+        safeUpdate[key] = value;
+      });
+    }
+
+    // Update the document with the safe update object
+    await updateDoc(conferenceRef, safeUpdate);
+    debug("Firebase", "Conference updated successfully");
+  } catch (error) {
+    console.error("Error updating conference:", error);
+    throw error;
+  }
+};
+
+// Register for a conference
+export const registerForConference = async (
+  conferenceId: string,
+  userId: string,
+  registrationData: Omit<
+    ConferenceRegistration,
+    | "id"
+    | "conferenceId"
+    | "userId"
+    | "registeredAt"
+    | "attendanceConfirmed"
+    | "foodDistributed"
+  >
+): Promise<string> => {
+  try {
+    // Check if user is already registered
+    const existingRegistration = await isUserRegisteredForConference(
+      userId,
+      conferenceId
+    );
+    if (existingRegistration) {
+      throw new Error("You are already registered for this conference");
+    }
+
+    // Check if conference exists and is still upcoming
+    const conference = await getConference(conferenceId);
+    if (!conference) {
+      throw new Error("Conference not found");
+    }
+
+    if (conference.status !== "upcoming") {
+      throw new Error(
+        "Registration is only available for upcoming conferences"
+      );
+    }
+
+    const registrationsRef = collection(db, "conferenceRegistrations");
+    const newRegistration = {
+      conferenceId,
+      userId,
+      ...registrationData,
+      registeredAt: serverTimestamp(),
+      attendanceConfirmed: false,
+      foodDistributed: false,
+    };
+
+    const docRef = await addDoc(registrationsRef, newRegistration);
+    console.log("Successfully registered for conference:", conferenceId);
+    return docRef.id;
+  } catch (error) {
+    console.error("Error registering for conference:", error);
+    throw error;
+  }
+};
 
 // Create a new conference
 export const createConference = async (
@@ -351,507 +1397,11 @@ export const createConference = async (
   }
 };
 
-// Update conference
-export const updateConference = async (
-  conferenceId: string,
-  data: Partial<Conference>
-): Promise<void> => {
-  try {
-    // First, get the current conference to check if it's live
-    const conferenceRef = doc(db, "conferences", conferenceId);
-    const conferenceSnap = await getDoc(conferenceRef);
-
-    if (!conferenceSnap.exists()) {
-      throw new Error("Conference not found");
-    }
-
-    const conference = conferenceSnap.data() as Conference;
-    const isLive = conference.status === "live";
-
-    // Create a safe update object
-    const safeUpdate: Record<string, any> = {
-      updatedAt: serverTimestamp(),
-    };
-
-    // If the conference is live, only allow updating specific fields
-    if (isLive) {
-      // Only allow updating youtubeUrl when live
-      if (data.youtubeUrl !== undefined) {
-        safeUpdate.youtubeUrl = data.youtubeUrl;
-      }
-
-      // Explicitly prevent updating other fields
-      if (
-        Object.keys(data).length > 1 ||
-        (Object.keys(data).length === 1 && data.youtubeUrl === undefined)
-      ) {
-        debug(
-          "Firebase",
-          "Warning: Attempting to update restricted fields for a live conference"
-        );
-      }
-    } else {
-      // If not live, allow updating all provided fields
-      Object.entries(data).forEach(([key, value]) => {
-        safeUpdate[key] = value;
-      });
-    }
-
-    // Update the document with the safe update object
-    await updateDoc(conferenceRef, safeUpdate);
-    debug("Firebase", "Conference updated successfully");
-  } catch (error) {
-    console.error("Error updating conference:", error);
-    throw error;
-  }
-};
-
-// Get a single conference by ID
-export const getConference = async (
-  conferenceId: string
-): Promise<Conference | null> => {
-  try {
-    const conferenceRef = doc(db, "conferences", conferenceId);
-    const conferenceSnap = await getDoc(conferenceRef);
-
-    if (conferenceSnap.exists()) {
-      const data = conferenceSnap.data();
-      return {
-        id: conferenceSnap.id,
-        ...data,
-      } as Conference;
-    } else {
-      console.log("No conference found");
-      return null;
-    }
-  } catch (error) {
-    console.error("Error getting conference:", error);
-    return null;
-  }
-};
-
-// Get all upcoming conferences
-export const getUpcomingConferences = async (): Promise<Conference[]> => {
-  try {
-    const now = Timestamp.now();
-    console.log("Fetching upcoming conferences. Current time:", now.toDate());
-    const conferencesRef = collection(db, "conferences");
-
-    // First, try to get all conferences without filtering to debug
-    const allConferencesQuery = query(conferencesRef);
-    const allConferencesSnapshot = await getDocs(allConferencesQuery);
-
-    console.log(
-      `Found ${allConferencesSnapshot.size} total conferences in database`
-    );
-
-    // Create a map to track unique conferences
-    const conferenceMap = new Map<string, Conference>();
-
-    // Process all conferences, but only add each one once to prevent duplication
-    allConferencesSnapshot.forEach((doc) => {
-      const data = doc.data();
-
-      // Check if conference is marked as upcoming or has a future start time
-      const hasUpcomingStatus = data.status === "upcoming";
-      let isUpcoming = true;
-
-      if (data.startTime?.seconds) {
-        const startTimeDate = new Date(data.startTime.seconds * 1000);
-        isUpcoming = startTimeDate > now.toDate();
-      }
-
-      // Only include if it's an upcoming conference (by status or future date)
-      if (hasUpcomingStatus || isUpcoming) {
-        // If we haven't added this conference yet, add it
-        if (!conferenceMap.has(doc.id)) {
-          const conference = {
-            id: doc.id,
-            ...data,
-          } as Conference;
-          conferenceMap.set(doc.id, conference);
-          console.log(
-            `Including upcoming conference: ${doc.id}, title: ${
-              data.title || "No title"
-            }`
-          );
-        }
-      }
-    });
-
-    // Return the unique list of conferences
-    return Array.from(conferenceMap.values());
-  } catch (error) {
-    console.error("Error getting upcoming conferences:", error);
-    return [];
-  }
-};
-
-// Get all live conferences
-export const getLiveConferences = async (): Promise<Conference[]> => {
-  try {
-    const now = Timestamp.now();
-    console.log("Fetching live conferences. Current time:", now.toDate());
-
-    const conferencesRef = collection(db, "conferences");
-
-    // For debugging - get all conferences without filtering
-    const simpleQuery = query(conferencesRef);
-    const simpleSnapshot = await getDocs(simpleQuery);
-    console.log(
-      `Found ${simpleSnapshot.size} total conferences to include as live`
-    );
-
-    // Create a map to track unique conferences
-    const conferenceMap = new Map<string, Conference>();
-
-    // Process all conferences, but only add each one once to prevent duplication
-    simpleSnapshot.forEach((doc) => {
-      const data = doc.data();
-
-      // Check if conference is marked as live
-      const hasLiveStatus = data.status === "live";
-
-      // Check if conference time is valid (should have started but not ended)
-      let isActuallyLive = true;
-      if (data.startTime?.seconds && data.endTime?.seconds) {
-        const startTimeDate = new Date(data.startTime.seconds * 1000);
-        const endTimeDate = new Date(data.endTime.seconds * 1000);
-        const currentTime = now.toDate();
-        isActuallyLive =
-          startTimeDate <= currentTime && endTimeDate >= currentTime;
-      }
-
-      // Only include if it's a live conference
-      if (hasLiveStatus || isActuallyLive) {
-        // If we haven't added this conference yet, add it
-        if (!conferenceMap.has(doc.id)) {
-          const conference = {
-            id: doc.id,
-            ...data,
-          } as Conference;
-          conferenceMap.set(doc.id, conference);
-          console.log(
-            `Including live conference: ${doc.id}, title: ${
-              data.title || "No title"
-            }`
-          );
-        }
-      }
-    });
-
-    // Return the unique list of conferences
-    return Array.from(conferenceMap.values());
-  } catch (error) {
-    console.error("Error getting live conferences:", error);
-    return [];
-  }
-};
-
-// Get past conferences (for archives)
-export const getPastConferences = async (
-  limitCount = 10
-): Promise<Conference[]> => {
-  try {
-    console.log(`Fetching past conferences, limit: ${limitCount}`);
-    const conferencesRef = collection(db, "conferences");
-    const now = Timestamp.now();
-
-    // For debugging - get all conferences without filtering
-    const simpleQuery = query(conferencesRef);
-    const simpleSnapshot = await getDocs(simpleQuery);
-    console.log(
-      `Found ${simpleSnapshot.size} total conferences for past display`
-    );
-
-    // Create a map to track unique conferences
-    const conferenceMap = new Map<string, Conference>();
-
-    // Process all conferences, but only add each one once to prevent duplication
-    simpleSnapshot.forEach((doc) => {
-      const data = doc.data();
-
-      // Check if conference is marked as ended
-      const isEnded = data.status === "ended";
-
-      // Check if conference's end time is in the past
-      let isPastDate = false;
-      if (data.endTime?.seconds) {
-        const endTimeDate = new Date(data.endTime.seconds * 1000);
-        isPastDate = endTimeDate < now.toDate();
-      } else if (data.startTime?.seconds) {
-        // If no end time, check if start time + 1 hour is in the past
-        const startTimeDate = new Date(data.startTime.seconds * 1000);
-        const estimatedEndTime = new Date(
-          startTimeDate.getTime() + 60 * 60 * 1000
-        );
-        isPastDate = estimatedEndTime < now.toDate();
-      }
-
-      // Only include if it's a past conference
-      if (isEnded || isPastDate) {
-        // If we haven't added this conference yet, add it
-        if (!conferenceMap.has(doc.id)) {
-          const conference = {
-            id: doc.id,
-            ...data,
-          } as Conference;
-          conferenceMap.set(doc.id, conference);
-          console.log(
-            `Including past conference: ${doc.id}, title: ${
-              data.title || "No title"
-            }`
-          );
-        }
-      }
-    });
-
-    // Get all values from the map as an array
-    const conferences = Array.from(conferenceMap.values());
-
-    // Sort by start time (newest to oldest)
-    conferences.sort((a, b) => {
-      const aTime = a.startTime?.seconds || 0;
-      const bTime = b.startTime?.seconds || 0;
-      return bTime - aTime; // Descending for past conferences
-    });
-
-    // Return the limited number of conferences
-    return conferences.slice(0, limitCount);
-  } catch (error) {
-    console.error("Error getting past conferences:", error);
-    return [];
-  }
-};
-
-// Add file upload function
-export const uploadFile = async (file: File, path: string): Promise<string> => {
-  try {
-    const storageRef = ref(storage, path);
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
-    return downloadURL;
-  } catch (error) {
-    console.error("Error uploading file:", error);
-    throw error;
-  }
-};
-
-// Add file upload function using Base64 encoding
-export const convertFileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
-};
-
-// Register for a conference
-export const registerForConference = async (
-  conferenceId: string,
-  userId: string,
-  registrationData: Omit<
-    ConferenceRegistration,
-    | "id"
-    | "conferenceId"
-    | "userId"
-    | "registeredAt"
-    | "attendanceConfirmed"
-    | "foodDistributed"
-  >
-): Promise<string> => {
-  try {
-    // Check if user is already registered
-    const existingRegistration = await isUserRegisteredForConference(
-      userId,
-      conferenceId
-    );
-    if (existingRegistration) {
-      throw new Error("You are already registered for this conference");
-    }
-
-    // Check if conference exists and is still upcoming
-    const conference = await getConference(conferenceId);
-    if (!conference) {
-      throw new Error("Conference not found");
-    }
-
-    if (conference.status !== "upcoming") {
-      throw new Error(
-        "Registration is only available for upcoming conferences"
-      );
-    }
-
-    const registrationsRef = collection(db, "conferenceRegistrations");
-    const newRegistration = {
-      conferenceId,
-      userId,
-      ...registrationData,
-      registeredAt: serverTimestamp(),
-      attendanceConfirmed: false,
-      foodDistributed: false,
-    };
-
-    const docRef = await addDoc(registrationsRef, newRegistration);
-    console.log("Successfully registered for conference:", conferenceId);
-    return docRef.id;
-  } catch (error) {
-    console.error("Error registering for conference:", error);
-    throw error;
-  }
-};
-
-// Get all registrations for a user
-export const getUserConferenceRegistrations = async (
-  userId: string
-): Promise<ConferenceRegistration[]> => {
-  try {
-    const registrationsRef = collection(db, "conferenceRegistrations");
-    const q = query(registrationsRef, where("userId", "==", userId));
-    const querySnapshot = await getDocs(q);
-
-    const registrations: ConferenceRegistration[] = [];
-    querySnapshot.forEach((doc) => {
-      registrations.push({
-        id: doc.id,
-        ...doc.data(),
-      } as ConferenceRegistration);
-    });
-
-    return registrations;
-  } catch (error) {
-    console.error("Error getting user registrations:", error);
-    return [];
-  }
-};
-
-// Check if a user is registered for a conference
-export const isUserRegisteredForConference = async (
-  userId: string,
-  conferenceId: string
-): Promise<boolean> => {
-  try {
-    const registrationsRef = collection(db, "conferenceRegistrations");
-    const q = query(
-      registrationsRef,
-      where("userId", "==", userId),
-      where("conferenceId", "==", conferenceId)
-    );
-
-    const querySnapshot = await getDocs(q);
-    return !querySnapshot.empty;
-  } catch (error) {
-    console.error("Error checking user registration:", error);
-    return false;
-  }
-};
-
-// Get registration details if a user is registered for a conference
-export const getUserRegistrationForConference = async (
-  userId: string,
-  conferenceId: string
-): Promise<ConferenceRegistration | null> => {
-  try {
-    const registrationsRef = collection(db, "conferenceRegistrations");
-    const q = query(
-      registrationsRef,
-      where("userId", "==", userId),
-      where("conferenceId", "==", conferenceId)
-    );
-
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      return null;
-    }
-
-    const doc = querySnapshot.docs[0];
-    return {
-      id: doc.id,
-      ...doc.data(),
-    } as ConferenceRegistration;
-  } catch (error) {
-    console.error("Error getting user registration details:", error);
-    return null;
-  }
-};
-
-// Get all registrations for a conference
-export const getConferenceRegistrations = async (
-  conferenceId: string
-): Promise<ConferenceRegistration[]> => {
-  try {
-    const registrationsRef = collection(db, "conferenceRegistrations");
-    const q = query(
-      registrationsRef,
-      where("conferenceId", "==", conferenceId)
-    );
-    const querySnapshot = await getDocs(q);
-
-    const registrations: ConferenceRegistration[] = [];
-    querySnapshot.forEach((doc) => {
-      registrations.push({
-        id: doc.id,
-        ...doc.data(),
-      } as ConferenceRegistration);
-    });
-
-    return registrations;
-  } catch (error) {
-    console.error("Error getting conference registrations:", error);
-    return [];
-  }
-};
-
-// Update attendance confirmation status
-export const updateRegistrationAttendance = async (
-  registrationId: string,
-  isConfirmed: boolean
-): Promise<boolean> => {
-  try {
-    const registrationRef = doc(db, "conferenceRegistrations", registrationId);
-    await updateDoc(registrationRef, {
-      attendanceConfirmed: isConfirmed,
-      updatedAt: serverTimestamp(),
-    });
-    console.log(
-      `Updated attendance for registration ${registrationId} to ${isConfirmed}`
-    );
-    return true;
-  } catch (error) {
-    console.error("Error updating registration attendance:", error);
-    return false;
-  }
-};
-
-// Update food distribution status
-export const updateRegistrationFoodStatus = async (
-  registrationId: string,
-  isFoodGiven: boolean
-): Promise<boolean> => {
-  try {
-    const registrationRef = doc(db, "conferenceRegistrations", registrationId);
-    await updateDoc(registrationRef, {
-      foodDistributed: isFoodGiven,
-      updatedAt: serverTimestamp(),
-    });
-    console.log(
-      `Updated food status for registration ${registrationId} to ${isFoodGiven}`
-    );
-    return true;
-  } catch (error) {
-    console.error("Error updating registration food status:", error);
-    return false;
-  }
-};
-
 // Get all conferences organized by a specific user
 export const getUserOrganizedConferences = async (
   userId: string
 ): Promise<Conference[]> => {
   try {
-    console.log(`Fetching conferences organized by user: ${userId}`);
     const conferencesRef = collection(db, "conferences");
     const q = query(conferencesRef, where("organizerId", "==", userId));
     const querySnapshot = await getDocs(q);
@@ -864,7 +1414,7 @@ export const getUserOrganizedConferences = async (
       } as Conference);
     });
 
-    // Sort by start time (newest first)
+    // Sort by most recent first
     conferences.sort((a, b) => {
       const aTime = a.startTime?.seconds || 0;
       const bTime = b.startTime?.seconds || 0;
@@ -878,541 +1428,33 @@ export const getUserOrganizedConferences = async (
   }
 };
 
-// Certificate interfaces
-export interface Certificate {
-  id: string;
-  conferenceId: string;
-  registrationId: string;
-  userId: string;
-  recipientName: string;
-  conferenceName: string;
-  conferenceDate: string;
-  issueDate: any; // Timestamp
-  certificateUrl?: string;
-  issuedBy: string;
-  issuedById: string;
-}
-
-// Issue a certificate for a conference registration
-export const issueCertificate = async (
-  conferenceId: string,
-  registrationId: string,
-  userData: { userId: string; recipientName: string },
-  issuerData: { issuedBy: string; issuedById: string }
-): Promise<Certificate | null> => {
+// End a conference (change status to ended and set endTime)
+export const endConference = async (conferenceId: string): Promise<void> => {
   try {
-    // Get conference details
-    const conference = await getConference(conferenceId);
-    if (!conference) {
+    // Get the conference document
+    const conferenceRef = doc(db, "conferences", conferenceId);
+    const conferenceSnap = await getDoc(conferenceRef);
+
+    if (!conferenceSnap.exists()) {
       throw new Error("Conference not found");
     }
 
-    // Check if certificate already exists
-    const existingCertificate = await getCertificateByRegistration(
-      registrationId
-    );
-    if (existingCertificate) {
-      return existingCertificate; // Return existing certificate instead of creating a new one
-    }
+    // Create a timestamp for the current time
+    const now = Timestamp.now();
 
-    // Create certificate data
-    const conferenceDate = conference.startTime
-      ? new Date(conference.startTime.seconds * 1000).toLocaleDateString(
-          "en-US",
-          {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          }
-        )
-      : "Unknown Date";
-
-    const certificateData: Omit<Certificate, "id"> = {
-      conferenceId,
-      registrationId,
-      userId: userData.userId,
-      recipientName: userData.recipientName,
-      conferenceName: conference.title,
-      conferenceDate,
-      issueDate: serverTimestamp(),
-      issuedBy: issuerData.issuedBy,
-      issuedById: issuerData.issuedById,
-    };
-
-    // Add to certificates collection
-    const certificatesRef = collection(db, "certificates");
-    const docRef = await addDoc(certificatesRef, certificateData);
-
-    // Update registration to mark certificate as issued
-    const registrationRef = doc(db, "conferenceRegistrations", registrationId);
-    await updateDoc(registrationRef, {
-      certificateIssued: true,
-      certificateId: docRef.id,
+    // Update the conference with status "ended" and current time as endTime
+    await updateDoc(conferenceRef, {
+      status: "ended",
+      endTime: now,
       updatedAt: serverTimestamp(),
     });
 
-    // Return the certificate with its ID
-    return {
-      id: docRef.id,
-      ...certificateData,
-      issueDate: Timestamp.now(), // Use current timestamp for immediate UI display
-    };
-  } catch (error) {
-    console.error("Error issuing certificate:", error);
-    return null;
-  }
-};
-
-// Batch issue certificates to multiple registrations
-export const batchIssueCertificates = async (
-  conferenceId: string,
-  registrationIds: string[],
-  issuerData: { issuedBy: string; issuedById: string }
-): Promise<{
-  success: number;
-  failed: number;
-  certificates: Certificate[];
-}> => {
-  const results = {
-    success: 0,
-    failed: 0,
-    certificates: [] as Certificate[],
-  };
-
-  // Process registrations in smaller batches to avoid hitting Firestore limits
-  const batchSize = 20;
-  for (let i = 0; i < registrationIds.length; i += batchSize) {
-    const batch = registrationIds.slice(i, i + batchSize);
-
-    // Get registration details for this batch
-    const registrationsData = await Promise.all(
-      batch.map(async (regId) => {
-        try {
-          const regRef = doc(db, "conferenceRegistrations", regId);
-          const regSnap = await getDoc(regRef);
-          if (regSnap.exists() && regSnap.data().attendanceConfirmed) {
-            const regData = regSnap.data() as ConferenceRegistration;
-            // Omit any existing id property from regData to avoid conflict
-            const { id: _, ...regDataWithoutId } = regData;
-            return {
-              id: regSnap.id,
-              ...regDataWithoutId,
-            };
-          }
-          return null;
-        } catch (error) {
-          console.error(`Error fetching registration ${regId}:`, error);
-          return null;
-        }
-      })
+    debug(
+      "Firebase",
+      `Conference ${conferenceId} ended successfully at ${now.toDate()}`
     );
-
-    // Issue certificates for valid registrations
-    const certificatePromises = registrationsData
-      .filter(
-        (reg): reg is ConferenceRegistration & { id: string } =>
-          reg !== null && !reg.certificateIssued
-      )
-      .map(async (reg) => {
-        try {
-          const cert = await issueCertificate(
-            conferenceId,
-            reg.id,
-            {
-              userId: reg.userId,
-              recipientName: reg.fullName,
-            },
-            issuerData
-          );
-
-          if (cert) {
-            results.success++;
-            results.certificates.push(cert);
-          } else {
-            results.failed++;
-          }
-          return cert;
-        } catch (error) {
-          console.error(`Error issuing certificate for ${reg.id}:`, error);
-          results.failed++;
-          return null;
-        }
-      });
-
-    await Promise.all(certificatePromises);
-  }
-
-  return results;
-};
-
-// Get a certificate by registration ID
-export const getCertificateByRegistration = async (
-  registrationId: string
-): Promise<Certificate | null> => {
-  try {
-    const certificatesRef = collection(db, "certificates");
-    const q = query(
-      certificatesRef,
-      where("registrationId", "==", registrationId),
-      limit(1)
-    );
-
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      return null;
-    }
-
-    const doc = querySnapshot.docs[0];
-    return {
-      id: doc.id,
-      ...doc.data(),
-    } as Certificate;
   } catch (error) {
-    console.error("Error getting certificate:", error);
-    return null;
-  }
-};
-
-// Get all certificates for a conference
-export const getConferenceCertificates = async (
-  conferenceId: string
-): Promise<Certificate[]> => {
-  try {
-    const certificatesRef = collection(db, "certificates");
-    const q = query(certificatesRef, where("conferenceId", "==", conferenceId));
-
-    const querySnapshot = await getDocs(q);
-
-    const certificates: Certificate[] = [];
-    querySnapshot.forEach((doc) => {
-      certificates.push({
-        id: doc.id,
-        ...doc.data(),
-      } as Certificate);
-    });
-
-    return certificates;
-  } catch (error) {
-    console.error("Error getting conference certificates:", error);
-    return [];
-  }
-};
-
-// Get all certificates issued to a user
-export const getUserCertificates = async (
-  userId: string
-): Promise<Certificate[]> => {
-  try {
-    const certificatesRef = collection(db, "certificates");
-    const q = query(certificatesRef, where("userId", "==", userId));
-
-    const querySnapshot = await getDocs(q);
-
-    const certificates: Certificate[] = [];
-    querySnapshot.forEach((doc) => {
-      certificates.push({
-        id: doc.id,
-        ...doc.data(),
-      } as Certificate);
-    });
-
-    return certificates;
-  } catch (error) {
-    console.error("Error getting user certificates:", error);
-    return [];
-  }
-};
-
-// Quiz interfaces
-export interface QuizQuestion {
-  id: string;
-  text: string;
-  options: string[];
-  correctOptionIndex: number;
-  points: number;
-}
-
-export interface Quiz {
-  id: string;
-  conferenceId: string;
-  title: string;
-  description: string;
-  creatorId: string;
-  creatorName: string;
-  questions: QuizQuestion[];
-  durationMinutes: number;
-  isActive: boolean;
-  createdAt: any;
-  updatedAt: any;
-}
-
-export interface QuizSubmission {
-  id: string;
-  quizId: string;
-  userId: string;
-  userName: string;
-  conferenceId: string;
-  answers: number[];
-  score: number;
-  maxPossibleScore: number;
-  completedAt: any;
-}
-
-// Create a new quiz for a conference
-export const createQuiz = async (
-  conferenceId: string,
-  creatorId: string,
-  creatorName: string,
-  quizData: Omit<
-    Quiz,
-    | "id"
-    | "conferenceId"
-    | "creatorId"
-    | "creatorName"
-    | "createdAt"
-    | "updatedAt"
-  >
-): Promise<string> => {
-  try {
-    // Validate conference exists
-    const conference = await getConference(conferenceId);
-    if (!conference) {
-      throw new Error("Conference not found");
-    }
-
-    // Create question IDs for new questions
-    const questions = quizData.questions.map((q) => ({
-      ...q,
-      id: crypto.randomUUID(),
-    }));
-
-    const quizzesRef = collection(db, "quizzes");
-    const newQuiz = {
-      conferenceId,
-      creatorId,
-      creatorName,
-      ...quizData,
-      questions,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-
-    const docRef = await addDoc(quizzesRef, newQuiz);
-    console.log("Quiz created successfully with ID:", docRef.id);
-    return docRef.id;
-  } catch (error) {
-    console.error("Error creating quiz:", error);
+    console.error("Error ending conference:", error);
     throw error;
-  }
-};
-
-// Update an existing quiz
-export const updateQuiz = async (
-  quizId: string,
-  data: Partial<Omit<Quiz, "id" | "conferenceId" | "creatorId" | "createdAt">>
-): Promise<void> => {
-  try {
-    const quizRef = doc(db, "quizzes", quizId);
-    await updateDoc(quizRef, {
-      ...data,
-      updatedAt: serverTimestamp(),
-    });
-    console.log("Quiz updated successfully");
-  } catch (error) {
-    console.error("Error updating quiz:", error);
-    throw error;
-  }
-};
-
-// Get a quiz by ID
-export const getQuiz = async (quizId: string): Promise<Quiz | null> => {
-  try {
-    const quizRef = doc(db, "quizzes", quizId);
-    const quizSnap = await getDoc(quizRef);
-
-    if (quizSnap.exists()) {
-      return {
-        id: quizId,
-        ...quizSnap.data(),
-      } as Quiz;
-    } else {
-      console.log("No quiz found with ID:", quizId);
-      return null;
-    }
-  } catch (error) {
-    console.error("Error getting quiz:", error);
-    return null;
-  }
-};
-
-// Get all quizzes for a conference
-export const getConferenceQuizzes = async (
-  conferenceId: string
-): Promise<Quiz[]> => {
-  try {
-    const quizzesRef = collection(db, "quizzes");
-    const q = query(quizzesRef, where("conferenceId", "==", conferenceId));
-    const querySnapshot = await getDocs(q);
-
-    const quizzes: Quiz[] = [];
-    querySnapshot.forEach((doc) => {
-      quizzes.push({
-        id: doc.id,
-        ...doc.data(),
-      } as Quiz);
-    });
-
-    return quizzes;
-  } catch (error) {
-    console.error("Error getting conference quizzes:", error);
-    return [];
-  }
-};
-
-// Submit a quiz attempt
-export const submitQuizAttempt = async (
-  quizId: string,
-  userId: string,
-  userName: string,
-  answers: number[]
-): Promise<QuizSubmission | null> => {
-  try {
-    // Get quiz to verify answers and calculate score
-    const quiz = await getQuiz(quizId);
-    if (!quiz) {
-      throw new Error("Quiz not found");
-    }
-
-    // Check if user already submitted this quiz
-    const existingSubmission = await getUserQuizSubmission(userId, quizId);
-    if (existingSubmission) {
-      throw new Error("You have already submitted this quiz");
-    }
-
-    // Calculate score
-    let score = 0;
-    const maxPossibleScore = quiz.questions.reduce(
-      (total, q) => total + q.points,
-      0
-    );
-
-    // Make sure answers array matches questions length
-    const validatedAnswers = answers.slice(0, quiz.questions.length);
-    while (validatedAnswers.length < quiz.questions.length) {
-      validatedAnswers.push(-1); // -1 indicates unanswered
-    }
-
-    // Score the quiz
-    quiz.questions.forEach((question, index) => {
-      if (validatedAnswers[index] === question.correctOptionIndex) {
-        score += question.points;
-      }
-    });
-
-    // Create submission
-    const submissionData: Omit<QuizSubmission, "id"> = {
-      quizId,
-      userId,
-      userName,
-      conferenceId: quiz.conferenceId,
-      answers: validatedAnswers,
-      score,
-      maxPossibleScore,
-      completedAt: serverTimestamp(),
-    };
-
-    // Save to database
-    const submissionsRef = collection(db, "quizSubmissions");
-    const docRef = await addDoc(submissionsRef, submissionData);
-
-    return {
-      id: docRef.id,
-      ...submissionData,
-      completedAt: Timestamp.now(), // Use current timestamp for immediate UI display
-    };
-  } catch (error) {
-    console.error("Error submitting quiz:", error);
-    throw error;
-  }
-};
-
-// Get a specific user's submission for a quiz
-export const getUserQuizSubmission = async (
-  userId: string,
-  quizId: string
-): Promise<QuizSubmission | null> => {
-  try {
-    const submissionsRef = collection(db, "quizSubmissions");
-    const q = query(
-      submissionsRef,
-      where("userId", "==", userId),
-      where("quizId", "==", quizId)
-    );
-
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) {
-      return null;
-    }
-
-    const doc = querySnapshot.docs[0];
-    return {
-      id: doc.id,
-      ...doc.data(),
-    } as QuizSubmission;
-  } catch (error) {
-    console.error("Error getting user quiz submission:", error);
-    return null;
-  }
-};
-
-// Get all submissions for a quiz
-export const getQuizSubmissions = async (
-  quizId: string
-): Promise<QuizSubmission[]> => {
-  try {
-    const submissionsRef = collection(db, "quizSubmissions");
-    const q = query(submissionsRef, where("quizId", "==", quizId));
-    const querySnapshot = await getDocs(q);
-
-    const submissions: QuizSubmission[] = [];
-    querySnapshot.forEach((doc) => {
-      submissions.push({
-        id: doc.id,
-        ...doc.data(),
-      } as QuizSubmission);
-    });
-
-    // Sort by score (highest first)
-    submissions.sort((a, b) => b.score - a.score);
-
-    return submissions;
-  } catch (error) {
-    console.error("Error getting quiz submissions:", error);
-    return [];
-  }
-};
-
-// Get all quiz submissions for a user
-export const getUserQuizSubmissions = async (
-  userId: string
-): Promise<QuizSubmission[]> => {
-  try {
-    const submissionsRef = collection(db, "quizSubmissions");
-    const q = query(submissionsRef, where("userId", "==", userId));
-    const querySnapshot = await getDocs(q);
-
-    const submissions: QuizSubmission[] = [];
-    querySnapshot.forEach((doc) => {
-      submissions.push({
-        id: doc.id,
-        ...doc.data(),
-      } as QuizSubmission);
-    });
-
-    return submissions;
-  } catch (error) {
-    console.error("Error getting user quiz submissions:", error);
-    return [];
   }
 };

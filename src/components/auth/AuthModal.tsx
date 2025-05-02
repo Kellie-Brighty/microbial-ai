@@ -3,6 +3,7 @@ import { Dialog } from "@headlessui/react";
 import { IoClose } from "react-icons/io5";
 import Login from "./Login";
 import SignUp from "./SignUp";
+import EmailVerification from "./EmailVerification";
 import { useNavigate } from "react-router-dom";
 
 interface AuthModalProps {
@@ -10,7 +11,7 @@ interface AuthModalProps {
   onClose: () => void;
   onSuccess: (message: string) => void;
   redirectPath?: string;
-  initialView?: "login" | "signup";
+  initialView?: "login" | "signup" | "verification";
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({
@@ -20,20 +21,26 @@ const AuthModal: React.FC<AuthModalProps> = ({
   redirectPath,
   initialView = "login",
 }) => {
-  const [isLogin, setIsLogin] = useState(initialView === "login");
+  const [currentView, setCurrentView] = useState<
+    "login" | "signup" | "verification"
+  >(initialView);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen) {
-      setIsLogin(initialView === "login");
+      setCurrentView(initialView);
     }
   }, [isOpen, initialView]);
 
   const toggleForm = () => {
-    setIsLogin(!isLogin);
+    setCurrentView(currentView === "login" ? "signup" : "login");
   };
 
-  const handleSignInSuccess = (
+  const switchToVerification = () => {
+    setCurrentView("verification");
+  };
+
+  const handleSuccess = (
     message: string,
     setSubmitting?: React.Dispatch<React.SetStateAction<boolean>>
   ) => {
@@ -43,10 +50,40 @@ const AuthModal: React.FC<AuthModalProps> = ({
     }
 
     onSuccess(message);
-    onClose();
 
-    if (redirectPath) {
-      navigate(redirectPath);
+    // If it's a verification success, don't close the modal yet
+    if (!message.includes("verification") && !message.includes("verify")) {
+      onClose();
+
+      if (redirectPath) {
+        navigate(redirectPath);
+      }
+    }
+  };
+
+  const renderView = () => {
+    switch (currentView) {
+      case "login":
+        return (
+          <Login
+            onToggleForm={toggleForm}
+            onClose={onClose}
+            onSuccess={handleSuccess}
+            onSwitchToVerification={switchToVerification}
+          />
+        );
+      case "signup":
+        return (
+          <SignUp
+            onToggleForm={toggleForm}
+            onClose={onClose}
+            onSuccess={handleSuccess}
+          />
+        );
+      case "verification":
+        return <EmailVerification onClose={onClose} />;
+      default:
+        return null;
     }
   };
 
@@ -70,19 +107,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
             <IoClose size={24} />
           </button>
 
-          {isLogin ? (
-            <Login
-              onToggleForm={toggleForm}
-              onClose={onClose}
-              onSuccess={handleSignInSuccess}
-            />
-          ) : (
-            <SignUp
-              onToggleForm={toggleForm}
-              onClose={onClose}
-              onSuccess={handleSignInSuccess}
-            />
-          )}
+          {renderView()}
         </Dialog.Panel>
       </div>
     </Dialog>

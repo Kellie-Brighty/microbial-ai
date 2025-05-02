@@ -15,11 +15,13 @@ import {
   QuizSubmission,
   getQuiz,
   Quiz,
+  endConference,
   // signOut,
   // auth,
 } from "../../utils/firebase";
 import Header from "../../components/Header";
 import AuthModal from "../../components/auth/AuthModal";
+import { EmailVerification } from "../../components/auth";
 import {
   FaCalendarAlt,
   FaCheckCircle,
@@ -35,6 +37,8 @@ import {
   FaTrophy,
   FaBrain,
   FaTimes,
+  FaEnvelope,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import { MdAddCircle } from "react-icons/md";
 import Notification from "../../components/ui/Notification";
@@ -334,7 +338,7 @@ const PointsBreakdownModal: React.FC<PointsBreakdownModalProps> = ({
 };
 
 const UserDashboard: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, isEmailVerified } = useAuth();
   const navigate = useNavigate();
   const [registrations, setRegistrations] = useState<
     Array<ConferenceRegistration & { conference?: Conference }>
@@ -370,6 +374,10 @@ const UserDashboard: React.FC = () => {
     message: "",
     isVisible: false,
   });
+
+  // Email verification related state
+  const [verificationModalOpen, setVerificationModalOpen] = useState(false);
+  // const [resendingVerification, setResendingVerification] = useState(false);
 
   // Add state for QR code modal
   const [selectedRegistration, setSelectedRegistration] = useState<
@@ -548,6 +556,36 @@ const UserDashboard: React.FC = () => {
     fetchUserCredits();
   }, [currentUser]);
 
+  // Handle resending verification email
+  // const handleResendVerification = async () => {
+  //   if (!currentUser) return;
+
+  //   setResendingVerification(true);
+  //   try {
+  //     const success = await sendVerificationEmail();
+  //     if (success) {
+  //       showNotification(
+  //         "success",
+  //         "Verification email sent! Please check your inbox."
+  //       );
+  //       setVerificationModalOpen(false);
+  //     } else {
+  //       showNotification(
+  //         "error",
+  //         "Failed to send verification email. Please try again later."
+  //       );
+  //     }
+  //   } catch (error) {
+  //     console.error("Error sending verification email:", error);
+  //     showNotification(
+  //       "error",
+  //       "An error occurred while sending the verification email."
+  //     );
+  //   } finally {
+  //     setResendingVerification(false);
+  //   }
+  // };
+
   // const handleSignOut = async () => {
   //   try {
   //     await signOut(auth);
@@ -717,14 +755,8 @@ const UserDashboard: React.FC = () => {
     try {
       setActionInProgress(conferenceToEnd);
 
-      // Use a JavaScript Date for the current time
-      const now = new Date();
-
-      // Update the conference with status "ended" and current time as endTime
-      await updateConference(conferenceToEnd, {
-        status: "ended",
-        endTime: now, // Firebase will handle the conversion appropriately
-      });
+      // Use the dedicated endConference function
+      await endConference(conferenceToEnd);
 
       // Update local state
       setOrganizedConferences((prev) =>
@@ -733,9 +765,9 @@ const UserDashboard: React.FC = () => {
             ? {
                 ...conf,
                 status: "ended",
-                // Create a Timestamp-like object for the UI
+                // Create a Timestamp-like object for the UI with current time
                 endTime: {
-                  seconds: Math.floor(now.getTime() / 1000),
+                  seconds: Math.floor(Date.now() / 1000),
                   nanoseconds: 0,
                 },
               }
@@ -818,6 +850,49 @@ const UserDashboard: React.FC = () => {
         onClose={() => setNotification({ ...notification, isVisible: false })}
       />
 
+      {/* Email Verification Warning */}
+      {currentUser && !isEmailVerified() && (
+        <div className="bg-yellow-50 border-b border-yellow-200">
+          <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between flex-wrap">
+              <div className="w-0 flex-1 flex items-center">
+                <span className="flex p-2 rounded-lg bg-yellow-100">
+                  <FaExclamationTriangle className="h-5 w-5 text-yellow-600" />
+                </span>
+                <p className="ml-3 font-medium text-yellow-700 truncate">
+                  <span className="hidden md:inline">
+                    Your email address hasn't been verified. Some features might
+                    be restricted.
+                  </span>
+                  <span className="inline md:hidden">
+                    Email verification required
+                  </span>
+                </p>
+              </div>
+              <div className="order-3 mt-2 flex-shrink-0 w-full sm:order-2 sm:mt-0 sm:w-auto">
+                <button
+                  onClick={() => setVerificationModalOpen(true)}
+                  className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-yellow-600 bg-white hover:bg-yellow-50 transition-colors"
+                >
+                  <FaEnvelope className="mr-2" />
+                  Verify now
+                </button>
+              </div>
+              <div className="order-2 flex-shrink-0 sm:order-3 sm:ml-3">
+                <button
+                  type="button"
+                  className="-mr-1 flex p-2 rounded-md hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  onClick={() => setVerificationModalOpen(false)}
+                >
+                  <span className="sr-only">Dismiss</span>
+                  <FaTimes className="h-4 w-4 text-yellow-500" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* QR Code Modal */}
       <QRCodeModal
         isOpen={qrModalOpen}
@@ -858,6 +933,17 @@ const UserDashboard: React.FC = () => {
         }
         isLoading={!!actionInProgress}
       />
+
+      {/* Email Verification Modal */}
+      {verificationModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full">
+            <EmailVerification
+              onClose={() => setVerificationModalOpen(false)}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="pt-20 pb-16">
         <div className="container mx-auto px-4">

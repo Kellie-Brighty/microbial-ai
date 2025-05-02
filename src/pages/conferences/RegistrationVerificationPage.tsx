@@ -349,3 +349,4 @@ const RegistrationVerificationPage: React.FC = () => {
 };
 
 export default RegistrationVerificationPage;
+ 

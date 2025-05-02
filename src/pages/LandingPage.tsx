@@ -181,14 +181,14 @@ const LandingPage: React.FC = () => {
                     <img
                       src={AgenNicky}
                       alt="Microbial AI"
-                      className="w-3/4 h-3/4 object-contain z-10"
+                      className="w-3/4 h-3/4 object-contain z-10 rounded-full"
                     />
                     <div className="absolute top-0 left-0 w-full h-full z-0">
                       <div className="animate-orbit absolute">
                         <GiDna1
                           size={40}
                           className="text-mint filter drop-shadow-lg"
-                        />
+                        />  
                       </div>
                       <div
                         className="animate-orbit absolute"
