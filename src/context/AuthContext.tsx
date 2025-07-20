@@ -121,21 +121,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     password: string,
     displayName: string
   ): Promise<User> => {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
     const user = userCredential.user;
 
     // Update display name
     await updateProfile(user, { displayName });
 
-    // Create user profile in Firestore
+        // Create user profile in Firestore
     await createUserProfile(user, {
-      displayName,
+          displayName,
       lastLogin: new Date(),
-      credits: DEFAULT_NEW_USER_CREDITS,
+          credits: DEFAULT_NEW_USER_CREDITS,
     });
 
     // Send verification email
@@ -146,11 +146,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Sign in function
   const signIn = async (email: string, password: string): Promise<User> => {
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
     const user = userCredential.user;
 
     // Update last login in Firestore
@@ -186,10 +186,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     try {
       await firebaseUpdateUserProfile(currentUser.uid, data);
-      // Update local state
+        // Update local state
       const updatedProfile = await getUserProfile(currentUser.uid);
       setUserProfile(updatedProfile);
-      return true;
+        return true;
     } catch (error) {
       console.error("Error updating user profile:", error);
       return false;

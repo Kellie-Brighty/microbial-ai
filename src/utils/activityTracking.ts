@@ -23,6 +23,8 @@ export enum ActivityType {
   SEARCH = "Search",
   COMMUNITY_JOIN = "Community Join",
   COMMUNITY_LEAVE = "Community Leave",
+  AI_CHAT = "AI Chat",
+  CREDIT_PURCHASE = "Credit Purchase",
 }
 
 // Record a user activity in the logs

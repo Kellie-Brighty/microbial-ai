@@ -8,6 +8,7 @@ import {
   FiMenu,
   FiX,
   FiLogOut,
+  FiFileText,
 } from "react-icons/fi";
 import { GiDna1 } from "react-icons/gi";
 import AgenNicky from "../../assets/microbial-profile.png";
@@ -74,6 +75,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       path: "/admin/credits",
       name: "Credit Management",
       icon: <FiGift />,
+    },
+    {
+      path: "/admin/applications",
+      name: "Applications",
+      icon: <FiFileText />,
     },
   ];
 

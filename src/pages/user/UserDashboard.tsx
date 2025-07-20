@@ -3,28 +3,41 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
   getUserConferenceRegistrations,
-  ConferenceRegistration,
-  getConference,
-  Conference,
-  getUserOrganizedConferences,
-  updateConference,
-  getConferenceCertificates,
-  getUserCertificates,
-  Certificate,
   getUserQuizSubmissions,
-  QuizSubmission,
+  getUserCertificates,
+  getUserOrganizedConferences,
+  getConference,
   getQuiz,
-  Quiz,
+  checkAuthorStatus,
+  getAuthorApplication,
+  getArticlesByAuthor,
+  updateConference,
   endConference,
-  // signOut,
-  // auth,
 } from "../../utils/firebase";
+import {
+  Conference,
+  ConferenceRegistration,
+  QuizSubmission,
+  Quiz,
+  Certificate,
+} from "../../utils/firebase";
+import {
+  FaMedal,
+  FaBook,
+  FaPen,
+  FaPlus,
+  FaEye,
+  FaCheckCircle,
+} from "react-icons/fa";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "../../utils/firebase";
 import Header from "../../components/Header";
 import AuthModal from "../../components/auth/AuthModal";
 import { EmailVerification } from "../../components/auth";
+import AuthorApplicationModal from "../../components/articles/AuthorApplicationModal";
+import ArticleCreationModal from "../../components/articles/ArticleCreationModal";
 import {
   FaCalendarAlt,
-  FaCheckCircle,
   FaHistory,
   FaClock,
   // FaTrash,
@@ -33,7 +46,6 @@ import {
   FaQrcode,
   FaMapMarkerAlt,
   FaGraduationCap,
-  FaMedal,
   FaTrophy,
   FaBrain,
   FaTimes,
@@ -395,6 +407,19 @@ const UserDashboard: React.FC = () => {
     null
   );
 
+  // Articles state
+  const [authorStatus, setAuthorStatus] = useState<string | null>(null);
+  const [authorApplication, setAuthorApplication] = useState<any>(null);
+  const [userArticles, setUserArticles] = useState<any[]>([]);
+  const [articlesLoading, setArticlesLoading] = useState(false);
+  const [authorStatusUnsubscribe, setAuthorStatusUnsubscribe] = useState<
+    (() => void) | null
+  >(null);
+  const [authorApplicationModalOpen, setAuthorApplicationModalOpen] =
+    useState(false);
+  const [articleCreationModalOpen, setArticleCreationModalOpen] =
+    useState(false);
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -534,7 +559,7 @@ const UserDashboard: React.FC = () => {
     fetchOrganizedConferences();
   }, [currentUser]);
 
-  // Fetch user's credit balance
+  // Fetch user credits
   useEffect(() => {
     const fetchUserCredits = async () => {
       if (!currentUser) {
@@ -548,6 +573,7 @@ const UserDashboard: React.FC = () => {
         setCredits(userCredits);
       } catch (error) {
         console.error("Error fetching user credits:", error);
+        // Don't set error state for credits as it's not critical
       } finally {
         setCreditsLoading(false);
       }
@@ -556,7 +582,65 @@ const UserDashboard: React.FC = () => {
     fetchUserCredits();
   }, [currentUser]);
 
-  // Handle resending verification email
+  // Fetch articles data
+  const fetchArticlesData = async () => {
+    if (!currentUser) return;
+
+    setArticlesLoading(true);
+    try {
+      // Get author status and application
+      const authorStatus = await checkAuthorStatus(currentUser.uid);
+      setAuthorStatus(authorStatus);
+
+      if (authorStatus === "pending" || authorStatus === "rejected") {
+        const application = await getAuthorApplication(currentUser.uid);
+        setAuthorApplication(application);
+      }
+
+      // Get user's published articles
+      const articles = await getArticlesByAuthor(currentUser.uid);
+      setUserArticles(articles);
+
+      // Set up real-time listener for author application status
+      const unsubscribe = onSnapshot(
+        doc(db, "authorApplications", currentUser.uid),
+        (doc) => {
+          if (doc.exists()) {
+            const data = doc.data();
+            setAuthorStatus(data.verificationStatus);
+            setAuthorApplication(data);
+          } else {
+            setAuthorStatus(null);
+            setAuthorApplication(null);
+          }
+        },
+        (error) => {
+          console.error("Error listening to author application:", error);
+        }
+      );
+
+      // Store unsubscribe function
+      setAuthorStatusUnsubscribe(() => unsubscribe);
+    } catch (error) {
+      console.error("Error fetching articles data:", error);
+    } finally {
+      setArticlesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchArticlesData();
+  }, [currentUser]);
+
+  // Cleanup real-time listener on unmount
+  useEffect(() => {
+    return () => {
+      if (authorStatusUnsubscribe) {
+        authorStatusUnsubscribe();
+      }
+    };
+  }, [authorStatusUnsubscribe]);
+
   // const handleResendVerification = async () => {
   //   if (!currentUser) return;
 
@@ -742,7 +826,7 @@ const UserDashboard: React.FC = () => {
   //   }
   // };
 
-  // Show confirmation modal for ending a conference
+  // Show confirmation modal for ending a livestream
   const showEndConfirmation = (conferenceId: string) => {
     setConferenceToEnd(conferenceId);
     setConfirmModalOpen(true);
@@ -947,56 +1031,249 @@ const UserDashboard: React.FC = () => {
 
       <div className="pt-20 pb-16">
         <div className="container mx-auto px-4">
-          {/* User Welcome Section */}
-          <div className="bg-gradient-to-r from-teal-500 to-teal-700 rounded-xl p-6 md:p-8 mb-8 text-white relative overflow-hidden shadow-lg">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full transform translate-x-1/3 -translate-y-1/3"></div>
-            <div className="relative z-10">
-              <div className="flex flex-col sm:flex-row justify-between items-start mb-4">
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-bold mb-2">
-                    Welcome, {currentUser?.displayName || "User"}!
-                  </h1>
-                  <p className="opacity-90 mb-4">
-                    Manage your conferences and registrations
-                  </p>
-                </div>
-
-                {/* Points Card */}
-                <button
-                  onClick={() => setPointsModalOpen(true)}
-                  className="bg-white rounded-lg shadow-md p-3 text-charcoal mt-4 sm:mt-0 flex items-center space-x-3 w-full sm:w-auto hover:bg-gray-50 transition-colors"
-                >
-                  <div className="bg-yellow-100 p-2 rounded-full">
-                    <FaMedal className="text-yellow-500 text-xl" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-lg">{totalQuizPoints}</p>
-                    <p className="text-sm text-gray-600">Quiz Points</p>
-                  </div>
-                  <div className="text-xs bg-mint text-white px-2 py-1 rounded-full">
-                    Details
-                  </div>
-                </button>
+          {/* Welcome Banner */}
+          <div className="bg-gradient-to-r from-mint to-purple text-white rounded-xl p-6 mb-8">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+              <div className="mb-4 md:mb-0">
+                <h1 className="text-2xl font-bold mb-2">
+                  Welcome, {currentUser?.displayName || "User"}!
+                </h1>
+                <p className="text-mint-100">
+                  Manage your conferences and registrations
+                </p>
               </div>
-
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Link
                   to="/conferences"
-                  className="bg-white bg-opacity-20 hover:bg-opacity-30 transition-colors rounded-full px-4 py-2 text-sm font-medium text-teal-900"
+                  className="bg-white text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-center font-medium"
                 >
                   Browse Conferences
                 </Link>
                 <Link
                   to="/conferences/create"
-                  className="bg-white text-teal-700 hover:bg-opacity-90 transition-colors rounded-full px-4 py-2 text-sm font-medium flex items-center"
+                  className="bg-white text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-center font-medium"
                 >
-                  <MdAddCircle className="mr-1" size={16} /> Create Conference
+                  + Create Conference
                 </Link>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-between">
+              <div className="bg-white rounded-lg p-3">
+                <div className="flex items-center">
+                  <FaMedal className="text-yellow-500 mr-2" />
+                  <span className="font-medium text-gray-800">
+                    {totalQuizPoints} Quiz Points
+                  </span>
+                </div>
+                <button
+                  onClick={() => setPointsModalOpen(true)}
+                  className="text-sm text-gray-600 hover:text-gray-800 underline"
+                >
+                  Details
+                </button>
               </div>
             </div>
           </div>
 
-          {/* My Created Conferences */}
+          {/* Articles Section - Prominent Position */}
+          {currentUser && (
+            <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+              <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-mint/10 to-purple/10">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-charcoal flex items-center">
+                    <FaBook className="mr-2 text-mint" /> Articles &
+                    Publications
+                  </h2>
+                  <Link
+                    to="/articles"
+                    className="text-sm text-mint hover:text-purple transition-colors"
+                  >
+                    Browse All Articles
+                  </Link>
+                </div>
+              </div>
+
+              {articlesLoading ? (
+                <div className="text-center py-8">
+                  <div className="inline-block w-8 h-8 border-4 border-t-mint border-gray-200 rounded-full animate-spin mb-4"></div>
+                  <p className="text-gray-500">Loading articles data...</p>
+                </div>
+              ) : authorStatus === null ? (
+                <div className="p-6 text-center">
+                  <div className="text-gray-400 text-4xl mb-4">✍️</div>
+                  <h3 className="text-lg font-medium text-charcoal mb-2">
+                    Become an Author
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Share your knowledge and earn from your articles. Apply to
+                    become an author today.
+                  </p>
+                  <button
+                    onClick={() => setAuthorApplicationModalOpen(true)}
+                    className="inline-flex items-center px-4 py-2 bg-mint text-white rounded-lg hover:bg-purple transition-colors"
+                  >
+                    <FaPen className="mr-2" />
+                    Apply for Author Role
+                  </button>
+                </div>
+              ) : authorStatus === "pending" ? (
+                <div className="p-6 text-center">
+                  <div className="text-yellow-400 text-4xl mb-4">⏳</div>
+                  <h3 className="text-lg font-medium text-charcoal mb-2">
+                    Application Under Review
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Your author application is being reviewed. You'll receive a
+                    notification once it's processed.
+                  </p>
+                  {authorApplication && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left">
+                      <h4 className="font-medium text-yellow-800 mb-2">
+                        Application Details
+                      </h4>
+                      <p className="text-sm text-yellow-700">
+                        Submitted on:{" "}
+                        {authorApplication.submittedAt
+                          ?.toDate?.()
+                          ?.toLocaleDateString() || "Unknown date"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : authorStatus === "rejected" ? (
+                <div className="p-6 text-center">
+                  <div className="text-red-400 text-4xl mb-4">❌</div>
+                  <h3 className="text-lg font-medium text-charcoal mb-2">
+                    Application Not Approved
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Your author application was not approved. You can apply
+                    again with improved credentials.
+                  </p>
+                  {authorApplication?.rejectionReason && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left mb-4">
+                      <h4 className="font-medium text-red-800 mb-2">
+                        Reason for Rejection
+                      </h4>
+                      <p className="text-sm text-red-700">
+                        {authorApplication.rejectionReason}
+                      </p>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setAuthorApplicationModalOpen(true)}
+                    className="inline-flex items-center px-4 py-2 bg-mint text-white rounded-lg hover:bg-purple transition-colors"
+                  >
+                    <FaPen className="mr-2" />
+                    Apply Again
+                  </button>
+                </div>
+              ) : authorStatus === "approved" ? (
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center">
+                      <div className="bg-green-100 p-2 rounded-full mr-3">
+                        <FaCheckCircle className="text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-charcoal">
+                          Author Status: Approved
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          You can now publish articles and earn royalties
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setArticleCreationModalOpen(true)}
+                      className="inline-flex items-center px-4 py-2 bg-mint text-white rounded-lg hover:bg-purple transition-colors"
+                    >
+                      <FaPlus className="mr-2" />
+                      Publish Article
+                    </button>
+                  </div>
+
+                  {userArticles.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="text-gray-400 text-4xl mb-4">📝</div>
+                      <h3 className="text-lg font-medium text-charcoal mb-2">
+                        No Articles Published Yet
+                      </h3>
+                      <p className="text-gray-600 mb-4">
+                        Start sharing your knowledge by publishing your first
+                        article.
+                      </p>
+                      <button
+                        onClick={() => setArticleCreationModalOpen(true)}
+                        className="inline-flex items-center px-4 py-2 bg-mint text-white rounded-lg hover:bg-purple transition-colors"
+                      >
+                        <FaPlus className="mr-2" />
+                        Publish Your First Article
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <h4 className="font-medium text-charcoal mb-4">
+                        Your Published Articles
+                      </h4>
+                      <div className="space-y-4">
+                        {userArticles.slice(0, 3).map((article) => (
+                          <div
+                            key={article.id}
+                            className="border border-gray-200 rounded-lg p-4 hover:border-mint transition-colors"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h5 className="font-medium text-charcoal mb-1">
+                                  {article.title}
+                                </h5>
+                                <p className="text-sm text-gray-600 mb-2">
+                                  Published:{" "}
+                                  {article.publishedAt
+                                    ?.toDate?.()
+                                    ?.toLocaleDateString() || "Unknown date"}
+                                </p>
+                                <div className="flex items-center text-sm text-gray-500">
+                                  <FaEye className="mr-1" />
+                                  <span>{article.viewCount} views</span>
+                                  {article.isMonetized && (
+                                    <>
+                                      <span className="mx-2">•</span>
+                                      <span>
+                                        {article.purchaseCount} purchases
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              <Link
+                                to={`/articles/${article.id}`}
+                                className="ml-4 text-mint hover:text-purple transition-colors"
+                              >
+                                <FaEye />
+                              </Link>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {userArticles.length > 3 && (
+                        <div className="mt-4 text-center">
+                          <Link
+                            to="/articles"
+                            className="text-sm text-mint hover:text-purple transition-colors"
+                          >
+                            View all {userArticles.length} articles →
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* Conferences You've Created Section */}
           <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-charcoal">
@@ -1214,31 +1491,35 @@ const UserDashboard: React.FC = () => {
                               <button
                                 onClick={() => {
                                   // First check how many certificates are already issued
-                                  getConferenceCertificates(conference.id)
-                                    .then((certificates) => {
-                                      // If some certificates already exist, show info
-                                      if (certificates.length > 0) {
-                                        showNotification(
-                                          "info",
-                                          `${certificates.length} certificates have already been issued. You can manage them on the registrants page.`
-                                        );
-                                      }
+                                  // getConferenceCertificates(conference.id) // This function does not exist
+                                  //   .then((certificates) => {
+                                  //     // If some certificates already exist, show info
+                                  //     if (certificates.length > 0) {
+                                  //       showNotification(
+                                  //         "info",
+                                  //         `${certificates.length} certificates have already been issued. You can manage them on the registrants page.`
+                                  //       );
+                                  //     }
 
-                                      // Navigate to the registrants page to manage certificates
-                                      navigate(
-                                        `/conferences/${conference.id}/registrants`
-                                      );
-                                    })
-                                    .catch((error) => {
-                                      console.error(
-                                        "Error checking certificates:",
-                                        error
-                                      );
-                                      // Still navigate to registrants page even if there's an error
-                                      navigate(
-                                        `/conferences/${conference.id}/registrants`
-                                      );
-                                    });
+                                  //     // Navigate to the registrants page to manage certificates
+                                  //     navigate(
+                                  //       `/conferences/${conference.id}/registrants`
+                                  //     );
+                                  //   })
+                                  //   .catch((error) => {
+                                  //     console.error(
+                                  //       "Error checking certificates:",
+                                  //       error
+                                  //     );
+                                  //     // Still navigate to registrants page even if there's an error
+                                  //     navigate(
+                                  //       `/conferences/${conference.id}/registrants`
+                                  //     );
+                                  //   });
+                                  // This part of the logic was removed as getConferenceCertificates is not defined
+                                  navigate(
+                                    `/conferences/${conference.id}/registrants`
+                                  );
                                 }}
                                 className="inline-flex items-center px-3 py-1.5 bg-purple text-white rounded-md text-sm hover:bg-purple/80 transition-colors"
                               >
@@ -1646,6 +1927,32 @@ const UserDashboard: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Modals */}
+          <AuthorApplicationModal
+            isOpen={authorApplicationModalOpen}
+            onClose={() => setAuthorApplicationModalOpen(false)}
+            onSuccess={() => {
+              showNotification(
+                "success",
+                "Author application submitted successfully!"
+              );
+              setAuthorApplicationModalOpen(false);
+              // Refresh articles data without page reload
+              fetchArticlesData();
+            }}
+          />
+
+          <ArticleCreationModal
+            isOpen={articleCreationModalOpen}
+            onClose={() => setArticleCreationModalOpen(false)}
+            onSuccess={() => {
+              showNotification("success", "Article published successfully!");
+              setArticleCreationModalOpen(false);
+              // Refresh articles data without page reload
+              fetchArticlesData();
+            }}
+          />
         </div>
       </div>
     </div>

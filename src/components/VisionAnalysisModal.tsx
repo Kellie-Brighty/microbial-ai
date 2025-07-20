@@ -13,6 +13,7 @@ import {
   CREDIT_COSTS,
 } from "../utils/creditsSystem";
 import CreditWarningModal from "./ui/CreditWarningModal";
+import { recordUserActivity, ActivityType } from "../utils/activityTracking";
 
 interface VisionAnalysisModalProps {
   isOpen: boolean;
@@ -180,8 +181,21 @@ const VisionAnalysisModal: React.FC<VisionAnalysisModalProps> = ({
       setAnalysisResult(result);
       setShowResultsOnMobile(true);
 
-      // Deduct credits after successful analysis
+      // Record the image analysis activity
       if (currentUser) {
+        // Record the activity with IMAGE_ANALYSIS type
+        recordUserActivity(
+          currentUser.uid,
+          currentUser.displayName || "User",
+          ActivityType.IMAGE_ANALYSIS,
+          {
+            imageFileName: selectedImage.name,
+            promptUsed: prompt || "Default analysis prompt",
+            timestamp: new Date().toISOString(),
+          }
+        );
+
+        // Deduct credits after successful analysis
         const deductionSuccess = await deductCredits(
           currentUser.uid,
           "IMAGE_ANALYSIS",

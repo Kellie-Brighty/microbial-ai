@@ -6,6 +6,7 @@ import AdminAuth from "../pages/admin/AdminAuth";
 import ActivityDashboard from "../pages/admin/ActivityDashboard";
 import CreditManagement from "../pages/admin/CreditManagement";
 import AdminLayout from "../pages/admin/AdminLayout";
+import ApplicationsManagementPage from "../pages/admin/ApplicationsManagementPage";
 
 // Admin routes with simple authentication check
 const AdminRoutes: React.FC = () => {
@@ -29,6 +30,7 @@ const AdminRoutes: React.FC = () => {
         <Route path="/moderation" element={<ModerationPage />} />
         <Route path="/communities" element={<CommunityModeration />} />
         <Route path="/credits" element={<CreditManagement />} />
+        <Route path="/applications" element={<ApplicationsManagementPage />} />
         <Route path="*" element={<Navigate to="/admin/activity" replace />} />
       </Routes>
     </AdminLayout>

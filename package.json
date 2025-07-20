@@ -13,6 +13,7 @@
     "@headlessui/react": "^2.2.1",
     "@heroicons/react": "^2.2.0",
     "@lens-network/sdk": "^0.0.0-canary-20241203140504",
+    "@types/uuid": "^10.0.0",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",
@@ -24,6 +25,7 @@
     "git-filter-repo": "^0.0.30",
     "html2canvas": "^1.4.1",
     "jsdom": "^25.0.1",
+    "jspdf": "^3.0.1",
     "localforage": "^1.10.0",
     "moment": "^2.30.1",
     "office-text-extractor": "^3.0.3",
@@ -39,6 +41,7 @@
     "react-paystack": "^6.0.0",
     "react-router-dom": "^7.5.0",
     "recharts": "^2.15.3",
+    "uuid": "^11.1.0",
     "viem": "^2.22.3"
   },
   "devDependencies": {
@@ -57,6 +60,6 @@
     "tailwindcss": "^3.4.17",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.18.2",
-    "vite": "^6.0.5"
+    "vite": "5.1.4"
   }
 }

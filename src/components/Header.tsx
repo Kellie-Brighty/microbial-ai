@@ -8,11 +8,15 @@ import {
   FaComments,
   FaSignOutAlt,
   FaUsers,
+  FaStore,
+  FaShoppingCart,
+  FaBook,
 } from "react-icons/fa";
-import { MdLiveTv } from "react-icons/md";
+// import { MdLiveTv } from "react-icons/md";
 import { GiDna1 } from "react-icons/gi";
 import { useAuth } from "../context/AuthContext";
 import { signOut, auth } from "../utils/firebase";
+import { getCart } from "../utils/cartUtils";
 
 // SignOut Confirmation Modal component
 interface SignOutModalProps {
@@ -62,17 +66,50 @@ const SignOutModal: React.FC<SignOutModalProps> = ({
 };
 
 interface HeaderProps {
-  onAuthModalOpen: () => void;
+  onAuthModalOpen?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
+const Header: React.FC<HeaderProps> = ({ onAuthModalOpen = () => {} }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [signOutModalOpen, setSignOutModalOpen] = useState(false);
+  const [cartItemCount, setCartItemCount] = useState(0);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Load cart item count
+  useEffect(() => {
+    const loadCartCount = async () => {
+      if (currentUser) {
+        try {
+          const cart = await getCart(currentUser.uid);
+          if (cart) {
+            const count = cart.items.reduce(
+              (total, item) => total + item.quantity,
+              0
+            );
+            setCartItemCount(count);
+          } else {
+            setCartItemCount(0);
+          }
+        } catch (error) {
+          console.error("Error loading cart count:", error);
+          setCartItemCount(0);
+        }
+      } else {
+        setCartItemCount(0);
+      }
+    };
+
+    loadCartCount();
+
+    // Set up an interval to refresh the cart count every minute
+    const intervalId = setInterval(loadCartCount, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [currentUser, location.pathname]);
 
   // Check if route is active
   const isActive = (path: string) => {
@@ -138,18 +175,6 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
             </span>
           </Link>
           <Link
-            to="/dashboard"
-            className={`rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
-              location.pathname.includes("/dashboard")
-                ? "bg-teal-700 font-medium"
-                : ""
-            }`}
-          >
-            <span className="flex items-center">
-              <MdLiveTv className="mr-1" /> Dashboard
-            </span>
-          </Link>
-          <Link
             to="/communities"
             className={`rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
               location.pathname.includes("/communities")
@@ -159,6 +184,30 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
           >
             <span className="flex items-center">
               <FaUsers className="mr-1" /> Whizpar
+            </span>
+          </Link>
+          <Link
+            to="/marketplace"
+            className={`rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
+              location.pathname.includes("/marketplace")
+                ? "bg-teal-700 font-medium"
+                : ""
+            }`}
+          >
+            <span className="flex items-center">
+              <FaStore className="mr-1" /> Marketplace
+            </span>
+          </Link>
+          <Link
+            to="/articles"
+            className={`rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
+              location.pathname.includes("/articles")
+                ? "bg-teal-700 font-medium"
+                : ""
+            }`}
+          >
+            <span className="flex items-center">
+              <FaBook className="mr-1" /> Articles
             </span>
           </Link>
           <Link
@@ -177,6 +226,26 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
 
         {/* User Actions (Desktop) */}
         <div className="hidden items-center space-x-2 md:flex">
+          {currentUser && (
+            <Link
+              to="/marketplace/cart"
+              className={`rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
+                location.pathname.includes("/marketplace/cart")
+                  ? "bg-teal-700 font-medium"
+                  : ""
+              } relative`}
+            >
+              <span className="flex items-center">
+                <FaShoppingCart className="mr-1" /> Cart
+                {cartItemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {cartItemCount > 99 ? "99+" : cartItemCount}
+                  </span>
+                )}
+              </span>
+            </Link>
+          )}
+
           {currentUser ? (
             <div className="relative" ref={profileDropdownRef}>
               <button
@@ -238,18 +307,6 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
               </span>
             </Link>
             <Link
-              to="/dashboard"
-              className={`rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
-                location.pathname.includes("/dashboard")
-                  ? "bg-teal-700 font-medium"
-                  : ""
-              }`}
-            >
-              <span className="flex items-center">
-                <MdLiveTv className="mr-2" /> Dashboard
-              </span>
-            </Link>
-            <Link
               to="/communities"
               className={`rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
                 location.pathname.includes("/communities")
@@ -259,6 +316,30 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
             >
               <span className="flex items-center">
                 <FaUsers className="mr-2" /> Whizpar
+              </span>
+            </Link>
+            <Link
+              to="/marketplace"
+              className={`rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
+                location.pathname.includes("/marketplace")
+                  ? "bg-teal-700 font-medium"
+                  : ""
+              }`}
+            >
+              <span className="flex items-center">
+                <FaStore className="mr-2" /> Marketplace
+              </span>
+            </Link>
+            <Link
+              to="/articles"
+              className={`rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
+                location.pathname.includes("/articles")
+                  ? "bg-teal-700 font-medium"
+                  : ""
+              }`}
+            >
+              <span className="flex items-center">
+                <FaBook className="mr-2" /> Articles
               </span>
             </Link>
             <Link
@@ -275,6 +356,25 @@ const Header: React.FC<HeaderProps> = ({ onAuthModalOpen }) => {
             </Link>
 
             <div className="border-t border-teal-700 pt-2 mt-2">
+              {currentUser && (
+                <Link
+                  to="/marketplace/cart"
+                  className={`block rounded px-3 py-2 transition-colors hover:bg-teal-700 ${
+                    location.pathname.includes("/marketplace/cart")
+                      ? "bg-teal-700 font-medium"
+                      : ""
+                  } relative`}
+                >
+                  <span className="flex items-center">
+                    <FaShoppingCart className="mr-2" /> Cart
+                    {cartItemCount > 0 && (
+                      <span className="ml-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {cartItemCount > 99 ? "99+" : cartItemCount}
+                      </span>
+                    )}
+                  </span>
+                </Link>
+              )}
               {currentUser ? (
                 <>
                   <Link

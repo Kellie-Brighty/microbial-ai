@@ -18,6 +18,8 @@ import {
 } from "../utils/creditsSystem";
 // Import the new CreditWarningModal
 import CreditWarningModal from "./ui/CreditWarningModal";
+// Import activity tracking
+import { recordUserActivity, ActivityType } from "../utils/activityTracking";
 
 interface MessageInputProps {
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
@@ -531,23 +533,6 @@ If the user references specific interests that aren't in the profile data provid
           }
         }
 
-        // Deduct credits for the successful AI response (only for authenticated users)
-        if (currentUser) {
-          const deductionSuccess = await deductCredits(
-            currentUser.uid,
-            "CHAT_MESSAGE",
-            `Chat with AI on ${new Date().toLocaleDateString()}`
-          );
-
-          if (deductionSuccess) {
-            // Update local credit state
-            const updatedCredits = await getUserCredits(currentUser.uid);
-            setCredits(updatedCredits);
-          } else {
-            console.error("Failed to deduct credits for chat message");
-          }
-        }
-
         // Create an assistant message
         const assistantMessage: Message = {
           id: `assistant-message-${Date.now()}`,
@@ -571,6 +556,36 @@ If the user references specific interests that aren't in the profile data provid
         };
 
         setMessages((prevMessages) => [...prevMessages, assistantMessage]);
+
+        // Record the AI chat activity
+        if (currentUser) {
+          // Record the activity with the new AI_CHAT type
+          recordUserActivity(
+            currentUser.uid,
+            currentUser.displayName || "User",
+            ActivityType.AI_CHAT,
+            {
+              messageContent:
+                input.substring(0, 50) + (input.length > 50 ? "..." : ""),
+              timestamp: new Date().toISOString(),
+            }
+          );
+
+          // Deduct credits as before
+          const deductionSuccess = await deductCredits(
+            currentUser.uid,
+            "CHAT_MESSAGE",
+            `Chat with AI on ${new Date().toLocaleDateString()}`
+          );
+
+          if (deductionSuccess) {
+            // Update local credit state
+            const updatedCredits = await getUserCredits(currentUser.uid);
+            setCredits(updatedCredits);
+          } else {
+            console.error("Failed to deduct credits for chat message");
+          }
+        }
       } else {
         // Create an error message if no result
         const errorMessage: Message = {

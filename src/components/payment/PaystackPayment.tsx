@@ -3,6 +3,7 @@ import { usePaystackPayment } from "react-paystack";
 import { useAuth } from "../../context/AuthContext";
 import { FiCreditCard, FiCheck } from "react-icons/fi";
 import { addCredits } from "../../utils/creditsSystem";
+import { recordUserActivity, ActivityType } from "../../utils/activityTracking";
 
 // Define the credit package types
 export interface CreditPackage {
@@ -99,7 +100,22 @@ const PaystackPayment: React.FC<PaystackPaymentProps> = ({
         await addCredits(
           currentUser.uid,
           selectedPackage.credits,
+          "purchase",
           `Purchased ${selectedPackage.name} package (${selectedPackage.credits} credits)`
+        );
+
+        // Record the credit purchase activity
+        recordUserActivity(
+          currentUser.uid,
+          currentUser.displayName || "User",
+          ActivityType.CREDIT_PURCHASE,
+          {
+            packageName: selectedPackage.name,
+            credits: selectedPackage.credits,
+            amount: selectedPackage.price,
+            referenceId: reference.reference,
+            timestamp: new Date().toISOString(),
+          }
         );
 
         // Update the UI
@@ -152,7 +168,7 @@ const PaystackPayment: React.FC<PaystackPaymentProps> = ({
         <button
           onClick={startPayment}
           disabled={isProcessing}
-          className={`w-full bg-mint hover:bg-purple text-white py-3 px-4 rounded-lg flex items-center justify-center transition-colors ${
+          className={`w-full bg-mint hover:bg-purple text-white py-4 px-6 rounded-lg flex items-center justify-center transition-colors font-bold text-lg shadow-xl border-2 border-purple ${
             isProcessing ? "opacity-70 cursor-not-allowed" : ""
           }`}
         >
